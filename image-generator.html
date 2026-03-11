@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -56,9 +56,9 @@
     .logo-orb {
       width: 22px; height: 22px; border-radius: 50%;
       background: conic-gradient(from 180deg, #7c5cfc, #b49ffe, #e8562a, #7c5cfc);
-      animation: spin 4s linear infinite; flex-shrink: 0;
+      animation: orb-spin 4s linear infinite; flex-shrink: 0;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes orb-spin { to { transform: rotate(360deg); } }
 
     .hdr-right { display: flex; align-items: center; gap: 10px; }
     .api-badge {
@@ -142,14 +142,13 @@
     textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     select option { background: #12121e; }
 
-    /* select with status indicator */
+    /* select status dot */
     .select-wrap { position: relative; }
     .select-wrap select { padding-right: 36px; }
     .select-status {
       position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--border); pointer-events: none;
-      transition: background 0.3s;
+      width: 7px; height: 7px; border-radius: 50%; background: var(--border);
+      pointer-events: none; transition: background 0.3s;
     }
     .select-status.loading { background: var(--orange2); animation: blink 0.8s ease-in-out infinite; }
     .select-status.ok      { background: var(--green); }
@@ -198,24 +197,59 @@
     .btn-sm:hover { border-color: var(--accent); color: var(--accent2); }
 
     .btn-enhance {
-      background: rgba(232,86,42,0.1); border: 1px solid rgba(232,86,42,0.28); color: var(--orange2);
+      background: rgba(232,86,42,0.12); border: 1px solid rgba(232,86,42,0.3); color: var(--orange2);
       padding: 9px 15px; font-size: 0.74rem; border-radius: 8px; white-space: nowrap;
+      transition: all 0.2s;
     }
-    .btn-enhance:hover:not(:disabled) { background: rgba(232,86,42,0.18); }
+    .btn-enhance:hover:not(:disabled) { background: rgba(232,86,42,0.22); transform: translateY(-1px); }
     .btn-enhance:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* ── ENHANCE PANEL ── */
+    /* ── ENHANCE AREA ── */
     .enhance-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
     .enhance-hint { font-size: 0.67rem; color: var(--muted); font-style: italic; flex: 1; }
 
+    /* model-aware badge shown next to button */
+    .model-aware-tag {
+      display: none; align-items: center; gap: 5px;
+      background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.25);
+      border-radius: 20px; padding: 3px 9px;
+      font-size: 0.62rem; color: var(--green); font-weight: 600; white-space: nowrap;
+    }
+    .model-aware-tag.visible { display: flex; }
+    .model-aware-tag .mat-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+    /* enhance result panel */
     .enhance-panel {
       background: rgba(232,86,42,0.05); border: 1px solid rgba(232,86,42,0.18);
-      border-radius: 10px; padding: 14px; display: none;
+      border-radius: 12px; padding: 14px; display: none;
+      animation: fadeSlide 0.3s ease;
     }
-    .enhance-panel label { color: var(--orange2); }
-    .enhance-panel textarea { border-color: rgba(232,86,42,0.2); background: rgba(0,0,0,0.25); min-height: 72px; }
-    .ep-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; gap: 8px; flex-wrap: wrap; }
+    @keyframes fadeSlide { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+    .enhance-panel-head {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; flex-wrap: wrap;
+    }
+    .enhance-panel-title {
+      font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase; color: var(--orange2);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .enhance-model-badge {
+      background: rgba(232,86,42,0.15); border: 1px solid rgba(232,86,42,0.3);
+      border-radius: 20px; padding: 2px 8px; font-size: 0.62rem; color: var(--orange2); font-style: normal;
+    }
+    .enhance-panel textarea {
+      border-color: rgba(232,86,42,0.2); background: rgba(0,0,0,0.25); min-height: 80px;
+    }
+    .ep-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; flex-wrap: wrap; }
     .ep-hint { font-size: 0.68rem; color: var(--orange2); opacity: 0.6; font-style: italic; }
+
+    /* ── MODEL INFO ── */
+    .model-info-box {
+      display: none; margin-top: 8px; font-size: 0.72rem; color: var(--muted);
+      background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 9px; padding: 10px 13px; line-height: 1.65;
+    }
 
     .divider { height: 1px; background: var(--border); }
 
@@ -245,7 +279,7 @@
     }
     .empty-icon { font-size: 3.2rem; opacity: 0.15; filter: grayscale(0.8); }
     .empty-title { font-family: 'Syne', sans-serif; font-size: 0.9rem; color: var(--muted); }
-    .empty-sub { font-size: 0.78rem; color: var(--muted); opacity: 0.6; max-width: 240px; line-height: 1.6; }
+    .empty-sub { font-size: 0.78rem; color: var(--muted); opacity: 0.6; max-width: 260px; line-height: 1.6; }
 
     .loading-wrap {
       display: none; flex: 1; align-items: center; justify-content: center;
@@ -255,7 +289,7 @@
     .ring { width: 46px; height: 46px; position: relative; }
     .ring::before, .ring::after { content: ''; position: absolute; border-radius: 50%; }
     .ring::before { inset: 0; border: 2px solid var(--border); }
-    .ring::after { inset: 0; border: 2px solid transparent; border-top-color: var(--accent); animation: spin 0.75s linear infinite; }
+    .ring::after { inset: 0; border: 2px solid transparent; border-top-color: var(--accent); animation: orb-spin 0.75s linear infinite; }
     .loading-msg { font-size: 0.82rem; color: var(--muted); font-style: italic; }
 
     .img-card {
@@ -313,6 +347,7 @@
 </head>
 <body>
 
+<!-- HEADER -->
 <header>
   <div class="logo">
     <div class="logo-orb"></div>
@@ -328,21 +363,23 @@
 <div class="key-banner" id="keyBanner">
   <div class="key-icon">🔑</div>
   <div class="key-info">
-    <strong>Masukkan API Key</strong>
-    <span>Dapatkan gratis di <a href="https://enter.pollinations.ai" target="_blank">enter.pollinations.ai</a></span>
+    <strong>Enter your API Key</strong>
+    <span>Get yours free at <a href="https://enter.pollinations.ai" target="_blank">enter.pollinations.ai</a></span>
   </div>
   <div class="key-input-row" id="keyInputRow">
-    <input type="text" id="apiKeyInput" placeholder="pk_… atau sk_…" autocomplete="off" spellcheck="false" />
-    <button class="btn-save-key" onclick="saveKey()">Simpan</button>
+    <input type="text" id="apiKeyInput" placeholder="pk_… or sk_…" autocomplete="off" spellcheck="false" />
+    <button class="btn-save-key" onclick="saveKey()">Save Key</button>
   </div>
   <div class="key-saved-row" id="keySavedRow">
-    <span class="key-saved-text">✓ API Key aktif</span>
-    <button class="btn-change-key" onclick="changeKey()">Ganti Key</button>
+    <span class="key-saved-text">✓ API Key active</span>
+    <button class="btn-change-key" onclick="changeKey()">Change</button>
   </div>
 </div>
 
+<!-- MAIN -->
 <main>
-  <!-- LEFT -->
+
+  <!-- LEFT PANEL -->
   <div>
     <div class="panel">
       <div class="panel-head"><div class="ph-dot"></div>Generator Settings</div>
@@ -351,34 +388,44 @@
         <!-- PROMPT -->
         <div>
           <label>Prompt</label>
-          <textarea id="userPrompt" placeholder="Deskripsikan gambar… e.g. a mystical forest at dusk, volumetric light, oil painting style" rows="4"></textarea>
+          <textarea id="userPrompt" placeholder="Describe your image… e.g. a mystical forest at dusk, volumetric light rays, oil painting style" rows="4"></textarea>
+
           <div class="enhance-bar">
-            <span class="enhance-hint">✦ Enhance prompt via AI sebelum generate</span>
+            <span class="enhance-hint">✦ Enhance with AI — tailored to your selected model</span>
+            <div class="model-aware-tag" id="modelAwareTag">
+              <div class="mat-dot"></div>
+              <span id="modelAwareLabel">flux</span>-aware
+            </div>
             <button class="btn btn-enhance" id="enhanceBtn" onclick="enhancePrompt()">
               <span id="enhanceBtnTxt">✦ Enhance</span>
             </button>
           </div>
         </div>
 
-        <!-- ENHANCED PROMPT -->
+        <!-- ENHANCED PROMPT RESULT -->
         <div class="enhance-panel" id="enhancePanel">
-          <label>Enhanced Prompt</label>
-          <textarea id="enhancedPrompt" rows="4" placeholder="Hasil enhance akan muncul di sini..."></textarea>
-          <div class="ep-actions">
-            <span class="ep-hint">Prompt ini akan digunakan saat generate</span>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-sm" onclick="swapEnhanced()" style="border-color:rgba(232,86,42,0.3);color:var(--orange2);font-size:0.71rem">⇅ Jadikan Prompt Utama</button>
-              <button class="btn btn-sm" onclick="clearEnhanced()" style="font-size:0.71rem">✕</button>
+          <div class="enhance-panel-head">
+            <div class="enhance-panel-title">
+              ✦ Enhanced Prompt
+              <span class="enhance-model-badge" id="enhanceModelBadge"></span>
             </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="swapEnhanced()" style="border-color:rgba(232,86,42,0.3);color:var(--orange2);font-size:0.71rem">⇅ Use as Main Prompt</button>
+              <button class="btn btn-sm" onclick="clearEnhanced()" style="font-size:0.71rem">✕ Clear</button>
+            </div>
+          </div>
+          <textarea id="enhancedPrompt" rows="5" placeholder="Enhanced prompt will appear here..."></textarea>
+          <div class="ep-actions">
+            <span class="ep-hint">This prompt will be used when you generate</span>
           </div>
         </div>
 
-        <!-- TEXT MODEL -->
+        <!-- TEXT MODEL (for Enhance) -->
         <div>
-          <label>Text Model (untuk Enhance)</label>
+          <label>Text Model — for Enhancement</label>
           <div class="select-wrap">
             <select id="textModel">
-              <option value="">⏳ Memuat model teks…</option>
+              <option value="">⏳ Loading text models…</option>
             </select>
             <div class="select-status loading" id="textModelStatus"></div>
           </div>
@@ -392,12 +439,12 @@
           <label>Image Model</label>
           <div class="select-wrap">
             <select id="imgModel" onchange="onImgModelChange()">
-              <option value="">⏳ Memuat model gambar…</option>
+              <option value="">⏳ Loading image models…</option>
             </select>
             <div class="select-status loading" id="imgModelStatus"></div>
           </div>
           <div class="model-count" id="imgModelCount"></div>
-          <div id="modelInfoBox" style="display:none; margin-top:8px; font-size:0.72rem; color:var(--muted); background:var(--input-bg); border:1px solid var(--border); border-radius:9px; padding:10px 13px; line-height:1.65;"></div>
+          <div class="model-info-box" id="modelInfoBox"></div>
         </div>
 
         <!-- DIMENSIONS -->
@@ -428,7 +475,7 @@
         <div>
           <label>Seed</label>
           <div class="seed-row">
-            <input type="number" id="seedVal" placeholder="Kosong = random" min="0" max="9999999" />
+            <input type="number" id="seedVal" placeholder="Leave empty for random" min="0" max="9999999" />
             <button class="btn btn-sm" onclick="rndSeed()">🎲 Random</button>
             <button class="btn btn-sm" onclick="clrSeed()">✕</button>
           </div>
@@ -452,7 +499,7 @@
     </div>
   </div>
 
-  <!-- RIGHT -->
+  <!-- RIGHT OUTPUT -->
   <div class="output-panel">
     <div class="out-head">
       <div class="out-title">
@@ -467,8 +514,8 @@
     <div class="out-body" id="outBody">
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">🌸</div>
-        <div class="empty-title">Belum ada gambar</div>
-        <div class="empty-sub">Masukkan API key, tulis prompt, lalu klik Generate. Shortcut: Ctrl+Enter</div>
+        <div class="empty-title">No images yet</div>
+        <div class="empty-sub">Enter your API key, write a prompt, pick a model, and hit Generate.<br/>Shortcut: <kbd style="background:var(--border);padding:2px 6px;border-radius:4px;font-size:0.75rem">Ctrl+Enter</kbd></div>
       </div>
       <div class="loading-wrap" id="loadingWrap">
         <div class="ring"></div>
@@ -476,9 +523,10 @@
       </div>
     </div>
     <div class="history-strip" id="historyStrip">
-      <span class="history-label">Riwayat</span>
+      <span class="history-label">History</span>
     </div>
   </div>
+
 </main>
 
 <div class="toast" id="toast">
@@ -487,19 +535,121 @@
 </div>
 
 <script>
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════
 // CONFIG
-// ══════════════════════════════════════════
-const BASE        = 'https://gen.pollinations.ai';
-const MODEL_MON   = 'https://model-monitor.pollinations.ai';
+// ════════════════════════════════════════════════
+const BASE = 'https://gen.pollinations.ai';
 
-let apiKey       = localStorage.getItem('pollinova_key') || '';
-let imgModelsMeta = [];
-let history      = [];
+let apiKey        = localStorage.getItem('pollinova_key') || '';
+let imgModelsMeta = [];   // full metadata from API
+let history       = [];
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════
+// PER-MODEL SYSTEM PROMPTS
+// Each entry defines how the AI should shape the
+// prompt specifically for that model's strengths.
+// ════════════════════════════════════════════════
+const MODEL_PROFILES = {
+  // ── FLUX family
+  'flux': {
+    style: 'photorealistic, cinematic',
+    tips: `FLUX excels at photorealistic images with perfect lighting, rich detail, and cinematic composition.
+Emphasize: camera lens (e.g. 85mm f/1.4), lighting setup (golden hour, rim light, volumetric rays),
+material textures (skin pores, fabric weave, metal reflections), depth of field, and color grading (teal-orange LUT, film grain).
+Include technical photo terms: RAW photo, 8K resolution, hyperrealistic, ultra-detailed.`
+  },
+  'flux-realism': {
+    style: 'hyper-photorealistic, documentary',
+    tips: `flux-realism pushes photorealism to the extreme. Describe real-world scenes with precise physical accuracy.
+Use: DSLR photography, specific lens (Canon EF 50mm f/1.2L), ISO settings, natural lighting only, no post-processing feel,
+RAW capture, true-to-life colors, photojournalism style. Avoid any artistic or painterly references.`
+  },
+  'flux-anime': {
+    style: 'anime, manga illustration',
+    tips: `flux-anime is optimized for anime and manga art styles. Use anime-specific vocabulary:
+cel shading, clean line art, soft gradients, expressive eyes (heterochromia, sparkle effects), sakura background,
+specific studios (Kyoto Animation style, Makoto Shinkai lighting), volumetric clouds, lens flare on eyes,
+pastel color palette or vivid saturated tones, speed lines, screen tones.`
+  },
+  'flux-3d': {
+    style: '3D render, CGI',
+    tips: `flux-3d specializes in 3D renders and CGI visuals. Use: Unreal Engine 5, Octane Render, Blender Cycles,
+subsurface scattering, ray-traced global illumination, PBR materials, specular highlights,
+ambient occlusion, HDRI lighting, 3D studio render, product visualization, smooth normals,
+high-poly mesh, 8K textures, physically-based rendering.`
+  },
+  'flux-pro': {
+    style: 'professional, high-fidelity',
+    tips: `flux-pro is the professional tier — use it for maximum quality. Combine technical photography with artistic direction:
+medium format camera (Hasselblad X2D), precise color temperature (3200K warm tungsten / 5600K daylight),
+studio lighting (3-point setup, softbox, beauty dish), post-processing (DaVinci Resolve color grade),
+professional editorial photography, advertising campaign visual, award-winning composition.`
+  },
+
+  // ── ANY-DARK
+  'any-dark': {
+    style: 'dark art, gothic, horror',
+    tips: `any-dark specializes in dark, gothic, and horror aesthetics. Lean into:
+chiaroscuro lighting (deep shadows, single candle highlight), baroque darkness, memento mori,
+corrupted textures (rust, decay, bone, ash), eldritch atmosphere, gothic architecture (flying buttresses, gargoyles),
+fog and mist, monochromatic or desaturated palette with one vivid accent color (blood red, necrotic green),
+digital painting with rough brushwork, dark fantasy concept art.`
+  },
+
+  // ── TURBO
+  'turbo': {
+    style: 'efficient, clear, vivid',
+    tips: `turbo is a fast model — prompts should be clear, direct, and unambiguous. Use simple but vivid descriptions.
+Focus on the main subject, key colors, basic lighting (sunlit, backlit, neon), and a clear style tag (digital art, photo, illustration).
+Avoid overly long prompts. Prioritize: subject clarity, dominant color palette, mood in one word (epic, cozy, dramatic).`
+  },
+
+  // ── STABLE DIFFUSION / GENERIC
+  'stable-diffusion': {
+    style: 'classic AI art, diffusion model',
+    tips: `Use traditional Stable Diffusion prompt engineering: quality tokens first (masterpiece, best quality, ultra-detailed),
+followed by subject, then style modifiers (artstation, deviantart, concept art, by Greg Rutkowski),
+then technical (8k, sharp focus, trending on artstation), then lighting (dramatic lighting, cinematic lighting).
+Use parentheses for emphasis: (masterpiece:1.3), (ultra-detailed:1.2). Add negative prompt keywords mentally.`
+  },
+
+  // ── OPENAI / DALL-E style
+  'openai': {
+    style: 'versatile, creative',
+    tips: `This model handles natural language descriptions well. Write as if describing a scene to a skilled illustrator.
+Be descriptive but natural: set the scene (time of day, environment), describe the subject in detail,
+specify an artistic style (watercolor, oil painting, digital illustration), add mood and atmosphere.
+The model understands artistic references (e.g. "in the style of Studio Ghibli", "Monet impressionism").`
+  },
+
+  // ── GPTIMAGE
+  'gptimage': {
+    style: 'versatile, instruction-following',
+    tips: `gptimage follows detailed instructions very precisely. Structure your prompt as clear visual instructions.
+Describe: background first, then foreground subjects, then lighting and atmosphere, then style.
+You can be very specific about spatial arrangement ("in the left foreground", "in the background to the right").
+Include text in images if needed — specify font style and placement. Very responsive to composition notes.`
+  },
+  'gptimage-large': {
+    style: 'high-res, instruction-following',
+    tips: `gptimage-large is the high-resolution version with excellent instruction-following. Use highly detailed spatial descriptions.
+Describe everything: background, midground, foreground, lighting direction, shadow positions, color temperature.
+You can specify exact layout compositions. Excellent at text rendering in images. Use clear, layered descriptions.`
+  }
+};
+
+// Fallback profile for unknown models
+const DEFAULT_PROFILE = {
+  style: 'high quality, detailed',
+  tips: `Write a rich, detailed image generation prompt. Include: main subject with detailed description,
+background/environment, lighting conditions (golden hour, neon, studio), color palette, artistic style
+(photorealistic, oil painting, concept art, digital illustration), mood and atmosphere, and technical quality markers
+(high resolution, ultra-detailed, sharp focus, 8K). Make the prompt vivid, specific, and visually compelling.`
+};
+
+// ════════════════════════════════════════════════
 // INIT
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   if (apiKey) {
     document.getElementById('keyInputRow').style.display = 'none';
@@ -509,16 +659,15 @@ document.addEventListener('DOMContentLoaded', () => {
   loadImageModels();
 });
 
-// ── API KEY ────────────────────────────────
+// ── API KEY ────────────────────────────────────
 function saveKey() {
   const val = document.getElementById('apiKeyInput').value.trim();
-  if (!val) { showToast('Masukkan API key!', '⚠', true); return; }
+  if (!val) { showToast('Please enter an API key!', '⚠', true); return; }
   apiKey = val;
   localStorage.setItem('pollinova_key', val);
   document.getElementById('keyInputRow').style.display = 'none';
   document.getElementById('keySavedRow').classList.add('visible');
-  showToast('API Key tersimpan!', '🔑');
-  // Reload models with key (might unlock more)
+  showToast('API Key saved!', '🔑');
   loadTextModels();
   loadImageModels();
 }
@@ -528,16 +677,14 @@ function changeKey() {
   document.getElementById('apiKeyInput').value = apiKey;
 }
 
-// ── LOAD TEXT MODELS ───────────────────────
-// Source: gen.pollinations.ai/text/models  (same data as model-monitor.pollinations.ai)
+// ── LOAD TEXT MODELS ───────────────────────────
 async function loadTextModels() {
   const sel    = document.getElementById('textModel');
   const status = document.getElementById('textModelStatus');
   const count  = document.getElementById('textModelCount');
 
   status.className = 'select-status loading';
-  sel.innerHTML = '<option value="">⏳ Memuat…</option>';
-
+  sel.innerHTML = '<option value="">⏳ Loading…</option>';
   const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
 
   try {
@@ -549,34 +696,29 @@ async function loadTextModels() {
     sel.innerHTML = '';
     data.forEach(m => {
       const id   = typeof m === 'string' ? m : (m.id || m.name || '');
-      const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0,36)}` : '';
-      const opt  = new Option(`${id}${desc}`, id);
-      sel.add(opt);
+      const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0, 40)}` : '';
+      sel.add(new Option(`${id}${desc}`, id));
     });
 
     status.className = 'select-status ok';
-    count.innerHTML  = `<span>${data.length} model tersedia</span>
-      <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
+    count.innerHTML  = `<span>${data.length} models available</span> <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
   } catch(e) {
-    // Fallback
     const fb = ['openai','openai-large','mistral','llama','gemini','deepseek','claude-hybridspace','qwen-coder'];
     sel.innerHTML = '';
     fb.forEach(m => sel.add(new Option(m, m)));
     status.className = 'select-status err';
-    count.innerHTML  = '<span>Menggunakan daftar fallback</span>';
+    count.innerHTML  = '<span>Using fallback list</span>';
   }
 }
 
-// ── LOAD IMAGE MODELS ──────────────────────
-// Source: gen.pollinations.ai/image/models  (same data as model-monitor.pollinations.ai)
+// ── LOAD IMAGE MODELS ──────────────────────────
 async function loadImageModels() {
   const sel    = document.getElementById('imgModel');
   const status = document.getElementById('imgModelStatus');
   const count  = document.getElementById('imgModelCount');
 
   status.className = 'select-status loading';
-  sel.innerHTML = '<option value="">⏳ Memuat…</option>';
-
+  sel.innerHTML = '<option value="">⏳ Loading…</option>';
   const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
 
   try {
@@ -589,14 +731,12 @@ async function loadImageModels() {
     sel.innerHTML = '';
     data.forEach(m => {
       const id   = typeof m === 'string' ? m : (m.id || m.name || '');
-      const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0,36)}` : '';
-      const opt  = new Option(`${id}${desc}`, id);
-      sel.add(opt);
+      const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0, 40)}` : '';
+      sel.add(new Option(`${id}${desc}`, id));
     });
 
     status.className = 'select-status ok';
-    count.innerHTML  = `<span>${data.length} model tersedia</span>
-      <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
+    count.innerHTML  = `<span>${data.length} models available</span> <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
     onImgModelChange();
   } catch(e) {
     const fb = ['flux','flux-realism','flux-anime','flux-3d','any-dark','turbo','gptimage-large'];
@@ -604,16 +744,21 @@ async function loadImageModels() {
     sel.innerHTML = '';
     fb.forEach(m => sel.add(new Option(m, m)));
     status.className = 'select-status err';
-    count.innerHTML  = '<span>Menggunakan daftar fallback</span>';
+    count.innerHTML  = '<span>Using fallback list</span>';
+    onImgModelChange();
   }
 }
 
 function onImgModelChange() {
   const id  = document.getElementById('imgModel').value;
   const box = document.getElementById('modelInfoBox');
-  if (!id) { box.style.display = 'none'; return; }
 
-  const m = imgModelsMeta.find(x => (typeof x === 'object') && (x.id || x.name) === id);
+  // Update model-aware badge on enhance button
+  updateModelAwareBadge(id);
+
+  // Show model metadata if available
+  if (!id) { box.style.display = 'none'; return; }
+  const m = imgModelsMeta.find(x => typeof x === 'object' && (x.id || x.name) === id);
   if (!m || typeof m !== 'object') { box.style.display = 'none'; return; }
 
   const parts = [];
@@ -622,52 +767,104 @@ function onImgModelChange() {
   if (m.pollen !== undefined) parts.push(`<b>Pollen/req:</b> ${m.pollen}`);
 
   if (parts.length) {
-    box.innerHTML      = parts.join(' &nbsp;·&nbsp; ');
-    box.style.display  = 'block';
+    box.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+    box.style.display = 'block';
   } else {
-    box.style.display  = 'none';
+    box.style.display = 'none';
   }
 }
 
-// ── SEED ──────────────────────────────────
+function updateModelAwareBadge(modelId) {
+  const tag   = document.getElementById('modelAwareTag');
+  const label = document.getElementById('modelAwareLabel');
+  if (!modelId) { tag.classList.remove('visible'); return; }
+  label.textContent = modelId;
+  tag.classList.add('visible');
+}
+
+// ── SEED ──────────────────────────────────────
 function rndSeed() { document.getElementById('seedVal').value = Math.floor(Math.random() * 9999999); }
 function clrSeed() { document.getElementById('seedVal').value = ''; }
 
-// ── ACTIVE PROMPT ─────────────────────────
+// ── ACTIVE PROMPT ─────────────────────────────
 function getPrompt() {
   return document.getElementById('enhancedPrompt').value.trim()
       || document.getElementById('userPrompt').value.trim();
 }
 
-// ══════════════════════════════════════════
-// ENHANCE  →  POST /v1/chat/completions
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════
+// BUILD MODEL-AWARE SYSTEM PROMPT
+// This is the core of the smart enhancement —
+// the AI receives tailored instructions that match
+// the specific strengths of the selected image model.
+// ════════════════════════════════════════════════
+function buildEnhanceSystemPrompt(imageModelId) {
+  // Find best matching profile (exact match first, then prefix match)
+  let profile = MODEL_PROFILES[imageModelId];
+  if (!profile) {
+    // Try prefix matching (e.g. "flux-dev" → "flux")
+    const prefixMatch = Object.keys(MODEL_PROFILES).find(k => imageModelId.startsWith(k));
+    profile = prefixMatch ? MODEL_PROFILES[prefixMatch] : DEFAULT_PROFILE;
+  }
+
+  return `You are an elite AI image prompt engineer with deep expertise in the "${imageModelId}" image generation model.
+
+## Your Mission
+Transform the user's rough idea into a masterfully crafted prompt that is PERFECTLY optimized for ${imageModelId}.
+
+## Model Profile: ${imageModelId}
+- **Style speciality:** ${profile.style}
+- **Optimization notes:** 
+${profile.tips}
+
+## Enhancement Rules
+1. KEEP the user's core concept and creative intent — only expand and enrich it
+2. Add SPECIFIC visual details: textures, materials, lighting setup, color temperature, atmosphere
+3. Include ${imageModelId}-optimal technical terms and style keywords from the model profile above
+4. Structure: [Subject + action] + [Environment/background] + [Lighting] + [Style/medium] + [Technical quality]
+5. Output 80–180 words — detailed but not bloated
+6. Use comma-separated descriptors naturally woven into the scene description
+7. NEVER add explanations, headers, or meta-commentary — return ONLY the final prompt text
+
+## Output
+Return the enhanced prompt ONLY — pure text, ready to paste into ${imageModelId}.`;
+}
+
+// ════════════════════════════════════════════════
+// ENHANCE PROMPT  →  POST /v1/chat/completions
+// ════════════════════════════════════════════════
 async function enhancePrompt() {
-  const raw  = document.getElementById('userPrompt').value.trim();
-  const model = document.getElementById('textModel').value;
-  if (!raw)   { showToast('Tulis prompt dulu!', '⚠', true); return; }
-  if (!apiKey){ showToast('Masukkan API key dulu!', '🔑', true); return; }
-  if (!model) { showToast('Pilih text model dulu!', '⚠', true); return; }
+  const raw        = document.getElementById('userPrompt').value.trim();
+  const textModel  = document.getElementById('textModel').value;
+  const imageModel = document.getElementById('imgModel').value;
+
+  if (!raw)        { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey)     { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!textModel)  { showToast('Select a text model first!', '⚠', true); return; }
+  if (!imageModel) { showToast('Select an image model first!', '⚠', true); return; }
 
   const btn = document.getElementById('enhanceBtn');
   const txt = document.getElementById('enhanceBtnTxt');
-  btn.disabled = true; txt.textContent = '⏳…';
+  btn.disabled = true;
+  txt.textContent = '⏳ Enhancing…';
+
+  const systemPrompt = buildEnhanceSystemPrompt(imageModel);
 
   try {
     const res = await fetch(`${BASE}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
       body: JSON.stringify({
-        model,
+        model: textModel,
         messages: [
-          {
-            role: 'system',
-            content: 'You are an expert AI image prompt engineer. Rewrite the given user prompt into a rich, detailed, high-quality image generation prompt. Add specifics: lighting, composition, mood, art style, color palette, texture, rendering. Max 200 words. Return ONLY the enhanced prompt — no explanation, no preamble.'
-          },
-          { role: 'user', content: raw }
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: raw }
         ],
-        temperature: 0.85,
-        max_tokens: 300
+        temperature: 0.82,
+        max_tokens: 400
       })
     });
 
@@ -675,15 +872,19 @@ async function enhancePrompt() {
     if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
 
     const enhanced = data.choices?.[0]?.message?.content?.trim();
-    if (!enhanced) throw new Error('Respons kosong dari model');
+    if (!enhanced) throw new Error('Empty response from model');
 
+    // Show result
     document.getElementById('enhancedPrompt').value = enhanced;
     document.getElementById('enhancePanel').style.display = 'block';
-    showToast(`Enhanced via ${model}!`, '✦');
+    document.getElementById('enhanceModelBadge').textContent = `optimized for ${imageModel} · via ${textModel}`;
+
+    showToast(`Enhanced for ${imageModel} via ${textModel}!`, '✦');
   } catch(e) {
-    showToast(`Gagal: ${e.message}`, '✕', true);
+    showToast(`Enhancement failed: ${e.message}`, '✕', true);
   } finally {
-    btn.disabled = false; txt.textContent = '✦ Enhance';
+    btn.disabled = false;
+    txt.textContent = '✦ Enhance';
   }
 }
 
@@ -692,22 +893,23 @@ function swapEnhanced() {
   if (!ep) return;
   document.getElementById('userPrompt').value = ep;
   clearEnhanced();
-  showToast('Prompt diperbarui!', '✓');
+  showToast('Prompt updated!', '✓');
 }
 function clearEnhanced() {
   document.getElementById('enhancedPrompt').value = '';
   document.getElementById('enhancePanel').style.display = 'none';
 }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════
 // GENERATE  →  GET /image/{prompt}
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════
 async function generateImage() {
   const prompt = getPrompt();
   const model  = document.getElementById('imgModel').value;
-  if (!prompt) { showToast('Tulis prompt dulu!', '⚠', true); return; }
-  if (!apiKey) { showToast('Masukkan API key dulu!', '🔑', true); return; }
-  if (!model)  { showToast('Pilih image model dulu!', '⚠', true); return; }
+
+  if (!prompt) { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey) { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!model)  { showToast('Select an image model first!', '⚠', true); return; }
 
   const width  = document.getElementById('imgW').value;
   const height = document.getElementById('imgH').value;
@@ -729,12 +931,12 @@ async function generateImage() {
     await new Promise((resolve, reject) => {
       const img = new Image();
       img.onload  = resolve;
-      img.onerror = () => reject(new Error('API gagal mengembalikan gambar. Periksa API key & model.'));
+      img.onerror = () => reject(new Error('API failed to return an image. Check your API key and model.'));
       img.src = imgUrl;
-      setTimeout(() => reject(new Error('Timeout setelah 90 detik')), 90000);
+      setTimeout(() => reject(new Error('Timeout after 90 seconds')), 90000);
     });
     addCard(imgUrl, { prompt, model, width, height, seed: seed || 'random', nologo, enhance, priv });
-    showToast('Gambar berhasil digenerate! 🌸', '🌸');
+    showToast('Image generated successfully! 🌸', '🌸');
   } catch(e) {
     showToast(e.message, '✕', true);
   } finally {
@@ -742,27 +944,35 @@ async function generateImage() {
   }
 }
 
-// ── LOADING ────────────────────────────────
-const MSGS = ['Generating your image…','Painting the pixels…','Consulting the AI…','Crafting your vision…','Almost there…'];
+// ── LOADING ────────────────────────────────────
+const MSGS = [
+  'Generating your image…',
+  'Painting the pixels…',
+  'Consulting the AI…',
+  'Crafting your vision…',
+  'Almost there…'
+];
 let loadInt;
 function setLoading(on) {
   const btn    = document.getElementById('genBtn');
   const btnTxt = document.getElementById('genBtnTxt');
   const wrap   = document.getElementById('loadingWrap');
   const empty  = document.getElementById('emptyState');
-  btn.disabled = on;
+  btn.disabled     = on;
   btnTxt.textContent = on ? '⏳ Generating…' : '⚡ Generate Image';
   if (on) {
-    empty.style.display = 'none'; wrap.classList.add('on');
+    empty.style.display = 'none';
+    wrap.classList.add('on');
     let i = 0;
     loadInt = setInterval(() => { document.getElementById('loadingMsg').textContent = MSGS[i++ % MSGS.length]; }, 2200);
   } else {
-    wrap.classList.remove('on'); clearInterval(loadInt);
+    wrap.classList.remove('on');
+    clearInterval(loadInt);
     if (!history.length) empty.style.display = 'flex';
   }
 }
 
-// ── ADD CARD ───────────────────────────────
+// ── ADD IMAGE CARD ─────────────────────────────
 function addCard(src, meta) {
   document.getElementById('emptyState').style.display = 'none';
   history.unshift({ src, meta });
@@ -829,17 +1039,21 @@ function clearAll() {
   document.getElementById('emptyState').style.display = 'flex';
   document.getElementById('clearBtn').style.display = 'none';
   updateCount();
-  showToast('Semua gambar dihapus.', '🗑');
+  showToast('All images cleared.', '🗑');
 }
 
 function dlImage(url, name) {
   const a = document.createElement('a');
-  a.href = url; a.download = `pollinova-${name}-${Date.now()}.jpg`;
-  a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast('Download dimulai!', '⬇');
+  a.href = url;
+  a.download = `pollinova-${name}-${Date.now()}.jpg`;
+  a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('Download started!', '⬇');
 }
 function cpyUrl(url) {
-  navigator.clipboard.writeText(url).then(() => showToast('URL disalin!', '🔗')).catch(() => showToast('Gagal salin URL.', '✕', true));
+  navigator.clipboard.writeText(url)
+    .then(() => showToast('URL copied!', '🔗'))
+    .catch(() => showToast('Failed to copy URL.', '✕', true));
 }
 
 function showToast(msg, icon = '✓', err = false) {
