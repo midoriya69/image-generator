@@ -391,7 +391,7 @@
           <textarea id="userPrompt" placeholder="Describe your image… e.g. a mystical forest at dusk, volumetric light rays, oil painting style" rows="4"></textarea>
 
           <div class="enhance-bar">
-            <span class="enhance-hint">✦ Enhance with AI — tailored to your selected model</span>
+            <span class="enhance-hint" id="enhanceHint">AI enhance follows the selected Pollinations model framework</span>
             <div class="model-aware-tag" id="modelAwareTag">
               <div class="mat-dot"></div>
               <span id="modelAwareLabel">flux</span>-aware
@@ -549,103 +549,348 @@ let history       = [];
 // Each entry defines how the AI should shape the
 // prompt specifically for that model's strengths.
 // ════════════════════════════════════════════════
-const MODEL_PROFILES = {
-  // ── FLUX family
+const MODEL_FAMILY_PROFILES = {
   'flux': {
+    label: 'FLUX',
+    frameworkName: 'Pollinations FLUX Framework',
+    framework: 'Subject + Action + Style + Context',
+    outputStyle: 'one tight natural-language prompt',
+    wordRange: '35-90 words',
+    temperature: 0.72,
+    maxTokens: 280,
     style: 'photorealistic, cinematic',
-    tips: `FLUX excels at photorealistic images with perfect lighting, rich detail, and cinematic composition.
-Emphasize: camera lens (e.g. 85mm f/1.4), lighting setup (golden hour, rim light, volumetric rays),
-material textures (skin pores, fabric weave, metal reflections), depth of field, and color grading (teal-orange LUT, film grain).
-Include technical photo terms: RAW photo, 8K resolution, hyperrealistic, ultra-detailed.`
+    guidance: `Lead with the main subject immediately, then describe what it is doing, then the style or medium, then the supporting context.
+Keep the language positive and visual. Add technical photo or render details only when they clearly strengthen the scene.`,
+    rules: [
+      'Front-load the subject and the most important visual hook',
+      'Use positive phrasing only',
+      'Keep modifiers specific instead of stacking many synonyms'
+    ],
+    avoid: [
+      'negative prompt sections',
+      'JSON, markdown, or headings',
+      'long disconnected tag lists'
+    ]
+  },
+  'turbo': {
+    label: 'Turbo',
+    frameworkName: 'Pollinations Turbo Framework',
+    framework: 'Subject + Key trait + Environment + Lighting + Mood',
+    outputStyle: 'short vivid prompt',
+    wordRange: '18-45 words',
+    temperature: 0.66,
+    maxTokens: 160,
+    style: 'efficient, clear, vivid',
+    guidance: `Keep the prompt compact, direct, and unambiguous.
+Focus on the most visible subject details, one clear environment, simple lighting, and a single dominant mood.`,
+    rules: [
+      'Use one strong subject statement',
+      'Limit style and mood to the most important details',
+      'Favor clarity over flourish'
+    ],
+    avoid: [
+      'long descriptive paragraphs',
+      'repeated adjectives',
+      'tiny details that will not affect the image'
+    ]
+  },
+  'stable-diffusion': {
+    label: 'Diffusion',
+    frameworkName: 'Pollinations Diffusion Tag Framework',
+    framework: 'Quality tags + Subject/Action + Scene + Lighting + Style + Render finish',
+    outputStyle: 'compact comma-separated prompt',
+    wordRange: '30-75 words',
+    temperature: 0.62,
+    maxTokens: 220,
+    style: 'classic AI art, diffusion model',
+    guidance: `Front-load quality and style tokens, then move into the main subject and scene.
+Use compact prompt language with tags and modifiers rather than a long paragraph. Weighted emphasis is acceptable only when it adds signal.`,
+    rules: [
+      'Put quality and fidelity tags first',
+      'Keep the prompt dense and tag-driven',
+      'Use commas to separate visual concepts cleanly'
+    ],
+    avoid: [
+      'full narrative prose',
+      'multi-sentence storytelling',
+      'negative prompt blocks unless the user explicitly asked for them'
+    ]
+  },
+  'instruction': {
+    label: 'Instruction',
+    frameworkName: 'Pollinations Instruction Framework',
+    framework: 'Scene intent + Composition + Subject details + Lighting/Atmosphere + Style + Constraints',
+    outputStyle: 'clear natural-language instructions',
+    wordRange: '60-130 words',
+    temperature: 0.74,
+    maxTokens: 360,
+    style: 'precise, instruction-following',
+    guidance: `Write like a visual director giving one clear image brief.
+Use spatial language when helpful, describe foreground and background relationships, and include text or layout instructions only if the user asks for them.`,
+    rules: [
+      'State the scene intent and composition clearly',
+      'Use layered spatial descriptions when useful',
+      'Keep the result readable as one polished prompt'
+    ],
+    avoid: [
+      'tag soup',
+      'unused technical jargon',
+      'style references that conflict with the user intent'
+    ]
+  },
+  'dark': {
+    label: 'Dark Art',
+    frameworkName: 'Pollinations Dark Art Framework',
+    framework: 'Subject + Emotion/Threat + Environment + Lighting + Texture + Medium',
+    outputStyle: 'rich atmospheric prompt',
+    wordRange: '45-100 words',
+    temperature: 0.72,
+    maxTokens: 280,
+    style: 'dark art, gothic, horror',
+    guidance: `Prioritize mood, contrast, decay, and unsettling atmosphere.
+Focus on one strong focal subject, oppressive environment cues, and material texture that reinforces the darkness.`,
+    rules: [
+      'Lean on contrast, shadow, and texture',
+      'Use one vivid accent color only when it helps the scene',
+      'Keep the horror or gothic mood consistent'
+    ],
+    avoid: [
+      'bright cheerful phrasing',
+      'too many unrelated horror motifs',
+      'generic fantasy filler'
+    ]
+  },
+  'design': {
+    label: 'Design',
+    frameworkName: 'Pollinations Design Framework',
+    framework: 'Primary subject + Composition + Palette + Material/Surface + Lighting + Finish',
+    outputStyle: 'polished design-focused prompt',
+    wordRange: '45-100 words',
+    temperature: 0.7,
+    maxTokens: 260,
+    style: 'commercial, glossy, design-led',
+    guidance: `Aim for clean commercial visuals with intentional composition, palette control, and material finish.
+Favor clarity, product readability, and art direction over excessive scene clutter.`,
+    rules: [
+      'Specify composition and palette clearly',
+      'Use surface and material language that affects the final look',
+      'Keep the visual direction cohesive and premium'
+    ],
+    avoid: [
+      'overcrowded scenes',
+      'mixed art directions',
+      'unnecessary lore or storytelling'
+    ]
+  },
+  'default': {
+    label: 'General',
+    frameworkName: 'Pollinations General Framework',
+    framework: 'Subject + Action + Environment + Lighting + Style + Technical finish',
+    outputStyle: 'balanced natural-language prompt',
+    wordRange: '45-110 words',
+    temperature: 0.72,
+    maxTokens: 280,
+    style: 'high quality, detailed',
+    guidance: `Create a complete image brief with a clear subject, environment, lighting, style, and finish.
+Make the prompt vivid and specific without turning it into a bloated paragraph.`,
+    rules: [
+      'Preserve the user intent and only infer missing details that improve the scene',
+      'Make each clause add visible information',
+      'Finish with style or quality notes that actually matter'
+    ],
+    avoid: [
+      'repeated adjectives',
+      'meta commentary',
+      'placeholder phrases like "highly detailed scene" without specifics'
+    ]
+  }
+};
+
+const MODEL_PROFILES = {
+  'flux': {
+    family: 'flux',
+    style: 'photorealistic, cinematic',
+    guidance: `Emphasize realistic lighting, texture, lens feel, depth of field, and cinematic composition.`
   },
   'flux-realism': {
+    family: 'flux',
     style: 'hyper-photorealistic, documentary',
-    tips: `flux-realism pushes photorealism to the extreme. Describe real-world scenes with precise physical accuracy.
-Use: DSLR photography, specific lens (Canon EF 50mm f/1.2L), ISO settings, natural lighting only, no post-processing feel,
-RAW capture, true-to-life colors, photojournalism style. Avoid any artistic or painterly references.`
+    guidance: `Push physical realism, natural light behavior, authentic camera language, and true-to-life materials.`,
+    rules: ['Keep the scene grounded in real-world optics and materials']
   },
   'flux-anime': {
+    family: 'flux',
     style: 'anime, manga illustration',
-    tips: `flux-anime is optimized for anime and manga art styles. Use anime-specific vocabulary:
-cel shading, clean line art, soft gradients, expressive eyes (heterochromia, sparkle effects), sakura background,
-specific studios (Kyoto Animation style, Makoto Shinkai lighting), volumetric clouds, lens flare on eyes,
-pastel color palette or vivid saturated tones, speed lines, screen tones.`
+    guidance: `Use anime-specific visual language such as cel shading, expressive eyes, line clarity, and stylized atmosphere.`,
+    rules: ['Blend the FLUX structure with anime art direction instead of photoreal camera jargon']
   },
   'flux-3d': {
+    family: 'flux',
     style: '3D render, CGI',
-    tips: `flux-3d specializes in 3D renders and CGI visuals. Use: Unreal Engine 5, Octane Render, Blender Cycles,
-subsurface scattering, ray-traced global illumination, PBR materials, specular highlights,
-ambient occlusion, HDRI lighting, 3D studio render, product visualization, smooth normals,
-high-poly mesh, 8K textures, physically-based rendering.`
+    guidance: `Favor render-engine language, materials, global illumination, and clean 3D composition.`,
+    rules: ['Use CGI or product-visualization detail only when it supports the subject']
   },
   'flux-pro': {
+    family: 'flux',
     style: 'professional, high-fidelity',
-    tips: `flux-pro is the professional tier — use it for maximum quality. Combine technical photography with artistic direction:
-medium format camera (Hasselblad X2D), precise color temperature (3200K warm tungsten / 5600K daylight),
-studio lighting (3-point setup, softbox, beauty dish), post-processing (DaVinci Resolve color grade),
-professional editorial photography, advertising campaign visual, award-winning composition.`
+    guidance: `Aim for premium editorial or advertising quality with precise lighting, color control, and polished finish.`,
+    wordRange: '45-100 words',
+    maxTokens: 320
   },
-
-  // ── ANY-DARK
   'any-dark': {
+    family: 'dark',
     style: 'dark art, gothic, horror',
-    tips: `any-dark specializes in dark, gothic, and horror aesthetics. Lean into:
-chiaroscuro lighting (deep shadows, single candle highlight), baroque darkness, memento mori,
-corrupted textures (rust, decay, bone, ash), eldritch atmosphere, gothic architecture (flying buttresses, gargoyles),
-fog and mist, monochromatic or desaturated palette with one vivid accent color (blood red, necrotic green),
-digital painting with rough brushwork, dark fantasy concept art.`
+    guidance: `Lean into chiaroscuro, decay, fog, bone, ash, gothic architecture, and a focused sinister mood.`
   },
-
-  // ── TURBO
   'turbo': {
+    family: 'turbo',
     style: 'efficient, clear, vivid',
-    tips: `turbo is a fast model — prompts should be clear, direct, and unambiguous. Use simple but vivid descriptions.
-Focus on the main subject, key colors, basic lighting (sunlit, backlit, neon), and a clear style tag (digital art, photo, illustration).
-Avoid overly long prompts. Prioritize: subject clarity, dominant color palette, mood in one word (epic, cozy, dramatic).`
+    guidance: `Prioritize the clearest version of the user's idea with only the highest-impact details.`
   },
-
-  // ── STABLE DIFFUSION / GENERIC
   'stable-diffusion': {
+    family: 'stable-diffusion',
     style: 'classic AI art, diffusion model',
-    tips: `Use traditional Stable Diffusion prompt engineering: quality tokens first (masterpiece, best quality, ultra-detailed),
-followed by subject, then style modifiers (artstation, deviantart, concept art, by Greg Rutkowski),
-then technical (8k, sharp focus, trending on artstation), then lighting (dramatic lighting, cinematic lighting).
-Use parentheses for emphasis: (masterpiece:1.3), (ultra-detailed:1.2). Add negative prompt keywords mentally.`
+    guidance: `Use proven diffusion prompt ordering: quality tags first, then subject, then scene, then lighting and finish.`
   },
-
-  // ── OPENAI / DALL-E style
+  'sdxl': {
+    family: 'stable-diffusion',
+    style: 'SDXL-quality diffusion art',
+    guidance: `Use rich style tags and clean visual descriptors, but avoid overstuffing the prompt.`
+  },
+  'sd3': {
+    family: 'stable-diffusion',
+    style: 'modern diffusion art',
+    guidance: `Favor coherent subject and scene tags over giant keyword piles.`
+  },
   'openai': {
+    family: 'instruction',
     style: 'versatile, creative',
-    tips: `This model handles natural language descriptions well. Write as if describing a scene to a skilled illustrator.
-Be descriptive but natural: set the scene (time of day, environment), describe the subject in detail,
-specify an artistic style (watercolor, oil painting, digital illustration), add mood and atmosphere.
-The model understands artistic references (e.g. "in the style of Studio Ghibli", "Monet impressionism").`
+    guidance: `Use natural, descriptive language as if briefing a skilled illustrator or art director.`
   },
-
-  // ── GPTIMAGE
+  'openai-large': {
+    family: 'instruction',
+    style: 'detailed, instruction-following',
+    guidance: `Allow a more layered scene description and tighter composition notes.`,
+    wordRange: '75-145 words',
+    maxTokens: 420
+  },
   'gptimage': {
+    family: 'instruction',
     style: 'versatile, instruction-following',
-    tips: `gptimage follows detailed instructions very precisely. Structure your prompt as clear visual instructions.
-Describe: background first, then foreground subjects, then lighting and atmosphere, then style.
-You can be very specific about spatial arrangement ("in the left foreground", "in the background to the right").
-Include text in images if needed — specify font style and placement. Very responsive to composition notes.`
+    guidance: `Structure the prompt as a deliberate image brief with scene layout, subject placement, lighting, and style.`,
+    rules: ['Mention text placement or layout only when the user asks for it']
   },
   'gptimage-large': {
+    family: 'instruction',
     style: 'high-res, instruction-following',
-    tips: `gptimage-large is the high-resolution version with excellent instruction-following. Use highly detailed spatial descriptions.
-Describe everything: background, midground, foreground, lighting direction, shadow positions, color temperature.
-You can specify exact layout compositions. Excellent at text rendering in images. Use clear, layered descriptions.`
+    guidance: `Use layered composition, foreground and background separation, lighting direction, and precise layout control.`,
+    wordRange: '80-150 words',
+    maxTokens: 420
+  },
+  'kontext': {
+    family: 'instruction',
+    style: 'precise controlled composition',
+    guidance: `Use exact composition and preserve any explicit user constraints. If the user asks for edits, keep unchanged elements stable.`
+  },
+  'imagen': {
+    family: 'instruction',
+    style: 'clean natural-language generation',
+    guidance: `Prefer polished natural language and accurate scene relationships over keyword stacks.`
+  },
+  'seedream': {
+    family: 'design',
+    style: 'glossy concept design, commercial illustration',
+    guidance: `Favor premium art direction, surface detail, controlled palette, and a clear design center of gravity.`
+  },
+  'recraft': {
+    family: 'design',
+    style: 'design system, illustration, brand polish',
+    guidance: `Keep the prompt visually intentional, clean, and compatible with design-led outputs.`
   }
 };
 
 // Fallback profile for unknown models
 const DEFAULT_PROFILE = {
+  family: 'default',
   style: 'high quality, detailed',
-  tips: `Write a rich, detailed image generation prompt. Include: main subject with detailed description,
-background/environment, lighting conditions (golden hour, neon, studio), color palette, artistic style
-(photorealistic, oil painting, concept art, digital illustration), mood and atmosphere, and technical quality markers
-(high resolution, ultra-detailed, sharp focus, 8K). Make the prompt vivid, specific, and visually compelling.`
+  guidance: `Describe the main subject, the action or pose, the environment, the lighting, the style, and the finish so the final image is vivid and specific.`
 };
+
+function mergeUnique(...lists) {
+  return [...new Set(lists.flat().filter(Boolean))];
+}
+
+function joinBlocks(...blocks) {
+  return blocks.filter(Boolean).join('\n');
+}
+
+function normalizeModelId(modelId) {
+  return (modelId || '').trim().toLowerCase();
+}
+
+function mergeModelProfile(profile, normalizedId) {
+  const base = MODEL_FAMILY_PROFILES[profile.family || 'default'] || MODEL_FAMILY_PROFILES.default;
+  return {
+    family: profile.family || 'default',
+    label: profile.label || base.label,
+    frameworkName: profile.frameworkName || base.frameworkName,
+    framework: profile.framework || base.framework,
+    outputStyle: profile.outputStyle || base.outputStyle,
+    wordRange: profile.wordRange || base.wordRange,
+    temperature: profile.temperature ?? base.temperature,
+    maxTokens: profile.maxTokens ?? base.maxTokens,
+    style: profile.style || base.style,
+    guidance: joinBlocks(base.guidance, profile.guidance),
+    rules: mergeUnique(base.rules || [], profile.rules || []),
+    avoid: mergeUnique(base.avoid || [], profile.avoid || []),
+    normalizedId
+  };
+}
+
+function resolveModelProfile(imageModelId) {
+  const normalizedId = normalizeModelId(imageModelId);
+  if (!normalizedId) return mergeModelProfile(DEFAULT_PROFILE, normalizedId);
+
+  if (MODEL_PROFILES[normalizedId]) {
+    return mergeModelProfile(MODEL_PROFILES[normalizedId], normalizedId);
+  }
+
+  const prefixKey = Object.keys(MODEL_PROFILES)
+    .sort((a, b) => b.length - a.length)
+    .find(key => normalizedId.startsWith(`${key}-`) || normalizedId.startsWith(`${key}_`) || normalizedId.startsWith(key));
+
+  if (prefixKey) {
+    return mergeModelProfile(MODEL_PROFILES[prefixKey], normalizedId);
+  }
+
+  const inferred =
+    normalizedId.includes('flux') ? { family: 'flux' } :
+    normalizedId.includes('turbo') ? { family: 'turbo' } :
+    normalizedId.includes('stable') || normalizedId.includes('diffusion') || normalizedId.includes('sdxl') || normalizedId.includes('sd3') || normalizedId === 'sd'
+      ? { family: 'stable-diffusion' } :
+    normalizedId.includes('gptimage') || normalizedId.includes('openai') || normalizedId.includes('dall') || normalizedId.includes('kontext') || normalizedId.includes('imagen')
+      ? { family: 'instruction' } :
+    normalizedId.includes('seedream') || normalizedId.includes('recraft') || normalizedId.includes('design') || normalizedId.includes('product')
+      ? { family: 'design' } :
+    normalizedId.includes('dark') || normalizedId.includes('goth') || normalizedId.includes('horror')
+      ? { family: 'dark' } :
+      DEFAULT_PROFILE;
+
+  return mergeModelProfile(inferred, normalizedId);
+}
+
+function sanitizeEnhancedPrompt(text) {
+  return (text || '')
+    .replace(/\r/g, '')
+    .replace(/^\s*(prompt|enhanced prompt|final prompt)\s*:\s*/i, '')
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
 // ════════════════════════════════════════════════
 // INIT
@@ -752,19 +997,26 @@ async function loadImageModels() {
 function onImgModelChange() {
   const id  = document.getElementById('imgModel').value;
   const box = document.getElementById('modelInfoBox');
+  const profile = resolveModelProfile(id);
 
   // Update model-aware badge on enhance button
   updateModelAwareBadge(id);
+  updateEnhanceHint(id);
 
-  // Show model metadata if available
   if (!id) { box.style.display = 'none'; return; }
   const m = imgModelsMeta.find(x => typeof x === 'object' && (x.id || x.name) === id);
-  if (!m || typeof m !== 'object') { box.style.display = 'none'; return; }
 
-  const parts = [];
-  if (m.description) parts.push(`<b>Info:</b> ${m.description}`);
-  if (m.type)        parts.push(`<b>Type:</b> ${m.type}`);
-  if (m.pollen !== undefined) parts.push(`<b>Pollen/req:</b> ${m.pollen}`);
+  const parts = [
+    `<b>Framework:</b> ${profile.framework}`,
+    `<b>Shape:</b> ${profile.outputStyle}`,
+    `<b>Length:</b> ${profile.wordRange}`
+  ];
+
+  if (m && typeof m === 'object') {
+    if (m.description) parts.push(`<b>Info:</b> ${m.description}`);
+    if (m.type)        parts.push(`<b>Type:</b> ${m.type}`);
+    if (m.pollen !== undefined) parts.push(`<b>Pollen/req:</b> ${m.pollen}`);
+  }
 
   if (parts.length) {
     box.innerHTML = parts.join(' &nbsp;·&nbsp; ');
@@ -780,6 +1032,18 @@ function updateModelAwareBadge(modelId) {
   if (!modelId) { tag.classList.remove('visible'); return; }
   label.textContent = modelId;
   tag.classList.add('visible');
+}
+
+function updateEnhanceHint(modelId) {
+  const hint = document.getElementById('enhanceHint');
+  if (!hint) return;
+  if (!modelId) {
+    hint.textContent = 'AI enhance follows the selected Pollinations model framework';
+    return;
+  }
+
+  const profile = resolveModelProfile(modelId);
+  hint.textContent = `AI enhance: ${profile.framework}`;
 }
 
 // ── SEED ──────────────────────────────────────
@@ -799,35 +1063,39 @@ function getPrompt() {
 // the specific strengths of the selected image model.
 // ════════════════════════════════════════════════
 function buildEnhanceSystemPrompt(imageModelId) {
-  // Find best matching profile (exact match first, then prefix match)
-  let profile = MODEL_PROFILES[imageModelId];
-  if (!profile) {
-    // Try prefix matching (e.g. "flux-dev" → "flux")
-    const prefixMatch = Object.keys(MODEL_PROFILES).find(k => imageModelId.startsWith(k));
-    profile = prefixMatch ? MODEL_PROFILES[prefixMatch] : DEFAULT_PROFILE;
-  }
+  const profile = resolveModelProfile(imageModelId);
+  const rules = [
+    ...profile.rules,
+    'Preserve the user core idea. Only infer missing visual details that strengthen the image.',
+    `Rebuild the prompt using this order: ${profile.framework}.`,
+    'Return exactly one finished prompt with no quotes, no label, no bullets, and no explanation.'
+  ].map((rule, index) => `${index + 1}. ${rule}`).join('\n');
 
-  return `You are an elite AI image prompt engineer with deep expertise in the "${imageModelId}" image generation model.
+  const avoidList = profile.avoid.map(item => `- ${item}`).join('\n');
 
-## Your Mission
-Transform the user's rough idea into a masterfully crafted prompt that is PERFECTLY optimized for ${imageModelId}.
+  return `You optimize prompts for Pollinations image generation.
 
-## Model Profile: ${imageModelId}
-- **Style speciality:** ${profile.style}
-- **Optimization notes:** 
-${profile.tips}
+Target image model: ${imageModelId}
+Resolved framework: ${profile.frameworkName}
+Best structure: ${profile.framework}
+Preferred output style: ${profile.outputStyle}
+Ideal length: ${profile.wordRange}
+Style speciality: ${profile.style}
 
-## Enhancement Rules
-1. KEEP the user's core concept and creative intent — only expand and enrich it
-2. Add SPECIFIC visual details: textures, materials, lighting setup, color temperature, atmosphere
-3. Include ${imageModelId}-optimal technical terms and style keywords from the model profile above
-4. Structure: [Subject + action] + [Environment/background] + [Lighting] + [Style/medium] + [Technical quality]
-5. Output 80–180 words — detailed but not bloated
-6. Use comma-separated descriptors naturally woven into the scene description
-7. NEVER add explanations, headers, or meta-commentary — return ONLY the final prompt text
+Model guidance:
+${profile.guidance}
 
-## Output
-Return the enhanced prompt ONLY — pure text, ready to paste into ${imageModelId}.`;
+Optimization rules:
+${rules}
+
+Avoid:
+${avoidList}
+
+Output contract:
+- one prompt only
+- ${profile.wordRange}
+- optimized for ${imageModelId}
+- ready to send directly to Pollinations /image/{prompt}`;
 }
 
 // ════════════════════════════════════════════════
@@ -837,6 +1105,7 @@ async function enhancePrompt() {
   const raw        = document.getElementById('userPrompt').value.trim();
   const textModel  = document.getElementById('textModel').value;
   const imageModel = document.getElementById('imgModel').value;
+  const profile    = resolveModelProfile(imageModel);
 
   if (!raw)        { showToast('Write a prompt first!', '⚠', true); return; }
   if (!apiKey)     { showToast('Enter your API key first!', '🔑', true); return; }
@@ -849,6 +1118,7 @@ async function enhancePrompt() {
   txt.textContent = '⏳ Enhancing…';
 
   const systemPrompt = buildEnhanceSystemPrompt(imageModel);
+  const userPrompt = `User idea:\n${raw}\n\nReturn only the finished prompt.`;
 
   try {
     const res = await fetch(`${BASE}/v1/chat/completions`, {
@@ -861,23 +1131,23 @@ async function enhancePrompt() {
         model: textModel,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user',   content: raw }
+          { role: 'user',   content: userPrompt }
         ],
-        temperature: 0.82,
-        max_tokens: 400
+        temperature: profile.temperature,
+        max_tokens: profile.maxTokens
       })
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
 
-    const enhanced = data.choices?.[0]?.message?.content?.trim();
+    const enhanced = sanitizeEnhancedPrompt(data.choices?.[0]?.message?.content);
     if (!enhanced) throw new Error('Empty response from model');
 
     // Show result
     document.getElementById('enhancedPrompt').value = enhanced;
     document.getElementById('enhancePanel').style.display = 'block';
-    document.getElementById('enhanceModelBadge').textContent = `optimized for ${imageModel} · via ${textModel}`;
+    document.getElementById('enhanceModelBadge').textContent = `${profile.frameworkName} · via ${textModel}`;
 
     showToast(`Enhanced for ${imageModel} via ${textModel}!`, '✦');
   } catch(e) {
