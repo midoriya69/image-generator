@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pollinova — AI Image Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:       #07070d;
+      --surface:  #0e0e18;
+      --card:     #12121e;
+      --border:   #1c1c2e;
+      --accent:   #7c5cfc;
+      --accent2:  #b49ffe;
+      --orange:   #e8562a;
+      --orange2:  #f4a056;
+      --green:    #3ecf8e;
+      --glow:     rgba(124,92,252,0.3);
+      --text:     #e4e1f5;
+      --muted:    #5c5a7a;
+      --input-bg: #0a0a14;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; overflow-x: hidden;
+    }
+
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 55% 45% at 8% 15%,  rgba(124,92,252,0.09) 0%, transparent 65%),
+        radial-gradient(ellipse 45% 55% at 92% 85%, rgba(232,86,42,0.06) 0%, transparent 65%);
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 28px;
+      background: rgba(7,7,13,0.88);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem;
+      letter-spacing: -0.5px; display: flex; align-items: center; gap: 9px;
+    }
+    .logo-orb {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: conic-gradient(from 180deg, #7c5cfc, #b49ffe, #e8562a, #7c5cfc);
+      animation: spin 4s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hdr-right { display: flex; align-items: center; gap: 10px; }
+    .api-badge {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 20px;
+      background: rgba(124,92,252,0.15); border: 1px solid rgba(124,92,252,0.3); color: var(--accent2);
+    }
+    .status-pill { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--muted); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    /* ── KEY BANNER ── */
+    .key-banner {
+      position: relative; z-index: 1;
+      margin: 18px 24px 0;
+      background: rgba(124,92,252,0.07); border: 1px solid rgba(124,92,252,0.2);
+      border-radius: 14px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .key-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .key-info { flex: 1; min-width: 180px; }
+    .key-info strong { font-family: 'Syne', sans-serif; font-size: 0.88rem; display: block; margin-bottom: 3px; }
+    .key-info span { font-size: 0.75rem; color: var(--muted); }
+    .key-info a { color: var(--accent2); text-decoration: none; }
+    .key-info a:hover { text-decoration: underline; }
+    .key-input-row { display: flex; gap: 8px; flex: 2; min-width: 220px; }
+    .key-input-row input {
+      flex: 1; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--text); font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem; padding: 9px 13px; outline: none; transition: border-color 0.2s;
+    }
+    .key-input-row input:focus { border-color: var(--accent); }
+    .key-input-row input::placeholder { color: var(--muted); }
+    .btn-save-key {
+      background: var(--accent); color: #fff; border: none; border-radius: 9px;
+      padding: 9px 16px; font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-save-key:hover { background: #9775fd; box-shadow: 0 4px 16px var(--glow); }
+    .key-saved-row { display: none; align-items: center; gap: 10px; flex: 2; }
+    .key-saved-row.visible { display: flex; }
+    .key-saved-text { font-size: 0.8rem; color: var(--green); }
+    .btn-change-key {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 5px 11px; font-size: 0.72rem; cursor: pointer;
+      transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    }
+    .btn-change-key:hover { border-color: var(--accent); color: var(--accent2); }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      position: relative; z-index: 1; max-width: 1340px; margin: 0 auto;
+      padding: 22px 24px 80px;
+      display: grid; grid-template-columns: 370px 1fr; gap: 20px; align-items: start;
+    }
+
+    /* ── PANELS ── */
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .panel-head {
+      padding: 15px 20px 12px; border-bottom: 1px solid var(--border);
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.75rem;
+      letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ph-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .panel-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── FORM ── */
+    label {
+      display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.9px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    }
+    textarea, input[type="number"], input[type="text"], select {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif;
+      font-size: 0.86rem; padding: 10px 13px;
+      transition: border-color 0.2s, box-shadow 0.2s; outline: none; -webkit-appearance: none;
+    }
+    textarea:focus, input:focus, select:focus {
+      border-color: rgba(124,92,252,0.5); box-shadow: 0 0 0 3px rgba(124,92,252,0.1);
+    }
+    textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
+    select option { background: #12121e; }
+
+    /* select with status indicator */
+    .select-wrap { position: relative; }
+    .select-wrap select { padding-right: 36px; }
+    .select-status {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--border); pointer-events: none;
+      transition: background 0.3s;
+    }
+    .select-status.loading { background: var(--orange2); animation: blink 0.8s ease-in-out infinite; }
+    .select-status.ok      { background: var(--green); }
+    .select-status.err     { background: var(--orange); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .model-count {
+      font-size: 0.66rem; color: var(--muted); margin-top: 5px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .model-count a { color: var(--accent2); text-decoration: none; font-size: 0.65rem; }
+    .model-count a:hover { text-decoration: underline; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .seed-row { display: flex; gap: 7px; align-items: flex-end; }
+    .seed-row input { flex: 1; }
+
+    /* ── TOGGLES ── */
+    .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toggle-item {
+      display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
+      background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; transition: border-color 0.2s, background 0.2s;
+    }
+    .toggle-item:has(input:checked) {
+      border-color: rgba(124,92,252,0.4); background: rgba(124,92,252,0.08); color: var(--accent2);
+    }
+    .toggle-item input { display: none; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      cursor: pointer; outline: none; border: none; font-family: 'Syne', sans-serif; font-weight: 700;
+      border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c5cfc, #5b3ee0); color: #fff; padding: 13px 18px;
+      font-size: 0.9rem; width: 100%; box-shadow: 0 4px 22px rgba(124,92,252,0.35); letter-spacing: 0.4px;
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,92,252,0.5); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .btn-sm {
+      background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 13px; font-size: 0.73rem; border-radius: 8px; white-space: nowrap;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent2); }
+
+    .btn-enhance {
+      background: rgba(232,86,42,0.1); border: 1px solid rgba(232,86,42,0.28); color: var(--orange2);
+      padding: 9px 15px; font-size: 0.74rem; border-radius: 8px; white-space: nowrap;
+    }
+    .btn-enhance:hover:not(:disabled) { background: rgba(232,86,42,0.18); }
+    .btn-enhance:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── ENHANCE PANEL ── */
+    .enhance-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .enhance-hint { font-size: 0.67rem; color: var(--muted); font-style: italic; flex: 1; }
+
+    .enhance-panel {
+      background: rgba(232,86,42,0.05); border: 1px solid rgba(232,86,42,0.18);
+      border-radius: 10px; padding: 14px; display: none;
+    }
+    .enhance-panel label { color: var(--orange2); }
+    .enhance-panel textarea { border-color: rgba(232,86,42,0.2); background: rgba(0,0,0,0.25); min-height: 72px; }
+    .ep-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; gap: 8px; flex-wrap: wrap; }
+    .ep-hint { font-size: 0.68rem; color: var(--orange2); opacity: 0.6; font-style: italic; }
+
+    .divider { height: 1px; background: var(--border); }
+
+    /* ── OUTPUT ── */
+    .output-panel {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+      min-height: 580px; display: flex; flex-direction: column;
+    }
+    .out-head {
+      padding: 15px 20px 12px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .out-title {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.75rem;
+      letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .out-count {
+      background: var(--accent); color: #fff; font-size: 0.6rem; font-weight: 800;
+      border-radius: 20px; padding: 1px 7px; display: none;
+    }
+    .out-body { flex: 1; padding: 22px; display: flex; flex-direction: column; gap: 22px; }
+
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; text-align: center; min-height: 440px;
+    }
+    .empty-icon { font-size: 3.2rem; opacity: 0.15; filter: grayscale(0.8); }
+    .empty-title { font-family: 'Syne', sans-serif; font-size: 0.9rem; color: var(--muted); }
+    .empty-sub { font-size: 0.78rem; color: var(--muted); opacity: 0.6; max-width: 240px; line-height: 1.6; }
+
+    .loading-wrap {
+      display: none; flex: 1; align-items: center; justify-content: center;
+      flex-direction: column; gap: 18px; min-height: 440px;
+    }
+    .loading-wrap.on { display: flex; }
+    .ring { width: 46px; height: 46px; position: relative; }
+    .ring::before, .ring::after { content: ''; position: absolute; border-radius: 50%; }
+    .ring::before { inset: 0; border: 2px solid var(--border); }
+    .ring::after { inset: 0; border: 2px solid transparent; border-top-color: var(--accent); animation: spin 0.75s linear infinite; }
+    .loading-msg { font-size: 0.82rem; color: var(--muted); font-style: italic; }
+
+    .img-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+      animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.97) translateY(12px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .img-card img { width: 100%; display: block; max-height: 72vh; object-fit: contain; background: #08080f; }
+    .img-meta { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .meta-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mtag {
+      font-size: 0.66rem; font-weight: 500; letter-spacing: 0.4px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 8px; color: var(--muted);
+    }
+    .mtag.accent { background: rgba(124,92,252,0.1); border-color: rgba(124,92,252,0.25); color: var(--accent2); }
+    .mtag.orange { background: rgba(232,86,42,0.1); border-color: rgba(232,86,42,0.25); color: var(--orange2); }
+    .img-actions { display: flex; gap: 7px; }
+
+    .history-strip {
+      border-top: 1px solid var(--border); padding: 12px 20px;
+      display: none; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    .history-label { font-size: 0.66rem; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; margin-right: 4px; }
+    .h-thumb {
+      width: 48px; height: 48px; border-radius: 8px; overflow: hidden; cursor: pointer;
+      border: 2px solid transparent; transition: border-color 0.2s; flex-shrink: 0;
+    }
+    .h-thumb:hover { border-color: var(--accent); }
+    .h-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 999;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 18px;
+      display: flex; align-items: center; gap: 9px; font-size: 0.8rem; max-width: 300px;
+      transform: translateY(18px); opacity: 0; transition: all 0.3s ease; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+    @media (max-width: 500px) {
+      header { padding: 11px 14px; }
+      main { padding: 16px 12px 60px; }
+      .key-banner { margin: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-orb"></div>
+    Pollinova
+  </div>
+  <div class="hdr-right">
+    <div class="status-pill"><div class="status-dot"></div>gen.pollinations.ai</div>
+    <div class="api-badge">New API v0.3</div>
+  </div>
+</header>
+
+<!-- API KEY BANNER -->
+<div class="key-banner" id="keyBanner">
+  <div class="key-icon">🔑</div>
+  <div class="key-info">
+    <strong>Masukkan API Key</strong>
+    <span>Dapatkan gratis di <a href="https://enter.pollinations.ai" target="_blank">enter.pollinations.ai</a></span>
+  </div>
+  <div class="key-input-row" id="keyInputRow">
+    <input type="text" id="apiKeyInput" placeholder="pk_… atau sk_…" autocomplete="off" spellcheck="false" />
+    <button class="btn-save-key" onclick="saveKey()">Simpan</button>
+  </div>
+  <div class="key-saved-row" id="keySavedRow">
+    <span class="key-saved-text">✓ API Key aktif</span>
+    <button class="btn-change-key" onclick="changeKey()">Ganti Key</button>
+  </div>
+</div>
+
+<main>
+  <!-- LEFT -->
+  <div>
+    <div class="panel">
+      <div class="panel-head"><div class="ph-dot"></div>Generator Settings</div>
+      <div class="panel-body">
+
+        <!-- PROMPT -->
+        <div>
+          <label>Prompt</label>
+          <textarea id="userPrompt" placeholder="Deskripsikan gambar… e.g. a mystical forest at dusk, volumetric light, oil painting style" rows="4"></textarea>
+          <div class="enhance-bar">
+            <span class="enhance-hint">✦ Enhance prompt via AI sebelum generate</span>
+            <button class="btn btn-enhance" id="enhanceBtn" onclick="enhancePrompt()">
+              <span id="enhanceBtnTxt">✦ Enhance</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ENHANCED PROMPT -->
+        <div class="enhance-panel" id="enhancePanel">
+          <label>Enhanced Prompt</label>
+          <textarea id="enhancedPrompt" rows="4" placeholder="Hasil enhance akan muncul di sini..."></textarea>
+          <div class="ep-actions">
+            <span class="ep-hint">Prompt ini akan digunakan saat generate</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="swapEnhanced()" style="border-color:rgba(232,86,42,0.3);color:var(--orange2);font-size:0.71rem">⇅ Jadikan Prompt Utama</button>
+              <button class="btn btn-sm" onclick="clearEnhanced()" style="font-size:0.71rem">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TEXT MODEL -->
+        <div>
+          <label>Text Model (untuk Enhance)</label>
+          <div class="select-wrap">
+            <select id="textModel">
+              <option value="">⏳ Memuat model teks…</option>
+            </select>
+            <div class="select-status loading" id="textModelStatus"></div>
+          </div>
+          <div class="model-count" id="textModelCount"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- IMAGE MODEL -->
+        <div>
+          <label>Image Model</label>
+          <div class="select-wrap">
+            <select id="imgModel" onchange="onImgModelChange()">
+              <option value="">⏳ Memuat model gambar…</option>
+            </select>
+            <div class="select-status loading" id="imgModelStatus"></div>
+          </div>
+          <div class="model-count" id="imgModelCount"></div>
+          <div id="modelInfoBox" style="display:none; margin-top:8px; font-size:0.72rem; color:var(--muted); background:var(--input-bg); border:1px solid var(--border); border-radius:9px; padding:10px 13px; line-height:1.65;"></div>
+        </div>
+
+        <!-- DIMENSIONS -->
+        <div class="grid2">
+          <div>
+            <label>Width (px)</label>
+            <select id="imgW">
+              <option value="512">512</option>
+              <option value="768">768</option>
+              <option value="1024" selected>1024</option>
+              <option value="1280">1280</option>
+              <option value="1920">1920</option>
+            </select>
+          </div>
+          <div>
+            <label>Height (px)</label>
+            <select id="imgH">
+              <option value="512">512</option>
+              <option value="768">768</option>
+              <option value="1024" selected>1024</option>
+              <option value="1280">1280</option>
+              <option value="1920">1920</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SEED -->
+        <div>
+          <label>Seed</label>
+          <div class="seed-row">
+            <input type="number" id="seedVal" placeholder="Kosong = random" min="0" max="9999999" />
+            <button class="btn btn-sm" onclick="rndSeed()">🎲 Random</button>
+            <button class="btn btn-sm" onclick="clrSeed()">✕</button>
+          </div>
+        </div>
+
+        <!-- TOGGLES -->
+        <div>
+          <label>Options</label>
+          <div class="toggles">
+            <label class="toggle-item"><input type="checkbox" id="optNologo" /><span>🚫</span> No Logo</label>
+            <label class="toggle-item"><input type="checkbox" id="optEnhance" /><span>✨</span> Auto Enhance</label>
+            <label class="toggle-item"><input type="checkbox" id="optPrivate" /><span>🔒</span> Private</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="genBtn" onclick="generateImage()">
+          <span id="genBtnTxt">⚡ Generate Image</span>
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="output-panel">
+    <div class="out-head">
+      <div class="out-title">
+        <div class="ph-dot"></div>
+        Output
+        <span class="out-count" id="outCount">0</span>
+      </div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-sm" id="clearBtn" onclick="clearAll()" style="display:none">🗑 Clear All</button>
+      </div>
+    </div>
+    <div class="out-body" id="outBody">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🌸</div>
+        <div class="empty-title">Belum ada gambar</div>
+        <div class="empty-sub">Masukkan API key, tulis prompt, lalu klik Generate. Shortcut: Ctrl+Enter</div>
+      </div>
+      <div class="loading-wrap" id="loadingWrap">
+        <div class="ring"></div>
+        <div class="loading-msg" id="loadingMsg">Generating your image…</div>
+      </div>
+    </div>
+    <div class="history-strip" id="historyStrip">
+      <span class="history-label">Riwayat</span>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast">
+  <span id="toastIcon">✓</span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════
+const BASE        = 'https://gen.pollinations.ai';
+const MODEL_MON   = 'https://model-monitor.pollinations.ai';
+
+let apiKey       = localStorage.getItem('pollinova_key') || '';
+let imgModelsMeta = [];
+let history      = [];
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  if (apiKey) {
+    document.getElementById('keyInputRow').style.display = 'none';
+    document.getElementById('keySavedRow').classList.add('visible');
+  }
+  loadTextModels();
+  loadImageModels();
+});
+
+// ── API KEY ────────────────────────────────
+function saveKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) { showToast('Masukkan API key!', '⚠', true); return; }
+  apiKey = val;
+  localStorage.setItem('pollinova_key', val);
+  document.getElementById('keyInputRow').style.display = 'none';
+  document.getElementById('keySavedRow').classList.add('visible');
+  showToast('API Key tersimpan!', '🔑');
+  // Reload models with key (might unlock more)
+  loadTextModels();
+  loadImageModels();
+}
+function changeKey() {
+  document.getElementById('keyInputRow').style.display = 'flex';
+  document.getElementById('keySavedRow').classList.remove('visible');
+  document.getElementById('apiKeyInput').value = apiKey;
+}
+
+// ── LOAD TEXT MODELS ───────────────────────
+// Source: gen.pollinations.ai/text/models  (same data as model-monitor.pollinations.ai)
+async function loadTextModels() {
+  const sel    = document.getElementById('textModel');
+  const status = document.getElementById('textModelStatus');
+  const count  = document.getElementById('textModelCount');
+
+  status.className = 'select-status loading';
+  sel.innerHTML = '<option value="">⏳ Memuat…</option>';
+
+  const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
+
+  try {
+    const res  = await fetch(`${BASE}/text/models`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) throw new Error('Empty');
+
+    sel.innerHTML = '';
+    data.forEach(m => {
+      const id   = typeof m === 'string' ? m : (m.id || m.name || '');
+      const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0,36)}` : '';
+      const opt  = new Option(`${id}${desc}`, id);
+      sel.add(opt);
+    });
+
+    status.className = 'select-status ok';
+    count.innerHTML  = `<span>${data.length} model tersedia</span>
+      <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
+  } catch(e) {
+    // Fallback
+    const fb = ['openai','openai-large','mistral','llama','gemini','deepseek','claude-hybridspace','qwen-coder'];
+    sel.innerHTML = '';
+    fb.forEach(m => sel.add(new Option(m, m)));
+    status.className = 'select-status err';
+    count.innerHTML  = '<span>Menggunakan daftar fallback</span>';
+  }
+}
+
+// ── LOAD IMAGE MODELS ──────────────────────
+// Source: gen.pollinations.ai/image/models  (same data as model-monitor.pollinations.ai)
+async function loadImageModels() {
+  const sel    = document.getElementById('imgModel');
+  const status = document.getElementById('imgModelStatus');
+  const count  = document.getElementById('imgModelCount');
+
+  status.className = 'select-status loading';
+  sel.innerHTML = '<option value="">⏳ Memuat…</option>';
+
+  const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
+
+  try {
+    const res  = await fetch(`${BASE}/image/models`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) throw new Error('Empty');
+
+    imgModelsMeta = data;
+    sel.innerHTML = '';
+    data.forEach(m => {
+      const id   = typeof m === 'string' ? m : (m.id || m.name || '');
+      const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0,36)}` : '';
+      const opt  = new Option(`${id}${desc}`, id);
+      sel.add(opt);
+    });
+
+    status.className = 'select-status ok';
+    count.innerHTML  = `<span>${data.length} model tersedia</span>
+      <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
+    onImgModelChange();
+  } catch(e) {
+    const fb = ['flux','flux-realism','flux-anime','flux-3d','any-dark','turbo','gptimage-large'];
+    imgModelsMeta = [];
+    sel.innerHTML = '';
+    fb.forEach(m => sel.add(new Option(m, m)));
+    status.className = 'select-status err';
+    count.innerHTML  = '<span>Menggunakan daftar fallback</span>';
+  }
+}
+
+function onImgModelChange() {
+  const id  = document.getElementById('imgModel').value;
+  const box = document.getElementById('modelInfoBox');
+  if (!id) { box.style.display = 'none'; return; }
+
+  const m = imgModelsMeta.find(x => (typeof x === 'object') && (x.id || x.name) === id);
+  if (!m || typeof m !== 'object') { box.style.display = 'none'; return; }
+
+  const parts = [];
+  if (m.description) parts.push(`<b>Info:</b> ${m.description}`);
+  if (m.type)        parts.push(`<b>Type:</b> ${m.type}`);
+  if (m.pollen !== undefined) parts.push(`<b>Pollen/req:</b> ${m.pollen}`);
+
+  if (parts.length) {
+    box.innerHTML      = parts.join(' &nbsp;·&nbsp; ');
+    box.style.display  = 'block';
+  } else {
+    box.style.display  = 'none';
+  }
+}
+
+// ── SEED ──────────────────────────────────
+function rndSeed() { document.getElementById('seedVal').value = Math.floor(Math.random() * 9999999); }
+function clrSeed() { document.getElementById('seedVal').value = ''; }
+
+// ── ACTIVE PROMPT ─────────────────────────
+function getPrompt() {
+  return document.getElementById('enhancedPrompt').value.trim()
+      || document.getElementById('userPrompt').value.trim();
+}
+
+// ══════════════════════════════════════════
+// ENHANCE  →  POST /v1/chat/completions
+// ══════════════════════════════════════════
+async function enhancePrompt() {
+  const raw  = document.getElementById('userPrompt').value.trim();
+  const model = document.getElementById('textModel').value;
+  if (!raw)   { showToast('Tulis prompt dulu!', '⚠', true); return; }
+  if (!apiKey){ showToast('Masukkan API key dulu!', '🔑', true); return; }
+  if (!model) { showToast('Pilih text model dulu!', '⚠', true); return; }
+
+  const btn = document.getElementById('enhanceBtn');
+  const txt = document.getElementById('enhanceBtnTxt');
+  btn.disabled = true; txt.textContent = '⏳…';
+
+  try {
+    const res = await fetch(`${BASE}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert AI image prompt engineer. Rewrite the given user prompt into a rich, detailed, high-quality image generation prompt. Add specifics: lighting, composition, mood, art style, color palette, texture, rendering. Max 200 words. Return ONLY the enhanced prompt — no explanation, no preamble.'
+          },
+          { role: 'user', content: raw }
+        ],
+        temperature: 0.85,
+        max_tokens: 300
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+
+    const enhanced = data.choices?.[0]?.message?.content?.trim();
+    if (!enhanced) throw new Error('Respons kosong dari model');
+
+    document.getElementById('enhancedPrompt').value = enhanced;
+    document.getElementById('enhancePanel').style.display = 'block';
+    showToast(`Enhanced via ${model}!`, '✦');
+  } catch(e) {
+    showToast(`Gagal: ${e.message}`, '✕', true);
+  } finally {
+    btn.disabled = false; txt.textContent = '✦ Enhance';
+  }
+}
+
+function swapEnhanced() {
+  const ep = document.getElementById('enhancedPrompt').value.trim();
+  if (!ep) return;
+  document.getElementById('userPrompt').value = ep;
+  clearEnhanced();
+  showToast('Prompt diperbarui!', '✓');
+}
+function clearEnhanced() {
+  document.getElementById('enhancedPrompt').value = '';
+  document.getElementById('enhancePanel').style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// GENERATE  →  GET /image/{prompt}
+// ══════════════════════════════════════════
+async function generateImage() {
+  const prompt = getPrompt();
+  const model  = document.getElementById('imgModel').value;
+  if (!prompt) { showToast('Tulis prompt dulu!', '⚠', true); return; }
+  if (!apiKey) { showToast('Masukkan API key dulu!', '🔑', true); return; }
+  if (!model)  { showToast('Pilih image model dulu!', '⚠', true); return; }
+
+  const width  = document.getElementById('imgW').value;
+  const height = document.getElementById('imgH').value;
+  const seed   = document.getElementById('seedVal').value;
+  const nologo = document.getElementById('optNologo').checked;
+  const enhance= document.getElementById('optEnhance').checked;
+  const priv   = document.getElementById('optPrivate').checked;
+
+  const params = new URLSearchParams({ model, width, height, key: apiKey });
+  if (seed)    params.set('seed', seed);
+  if (nologo)  params.set('nologo', 'true');
+  if (enhance) params.set('enhance', 'true');
+  if (priv)    params.set('private', 'true');
+
+  const imgUrl = `${BASE}/image/${encodeURIComponent(prompt)}?${params}`;
+  setLoading(true);
+
+  try {
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = resolve;
+      img.onerror = () => reject(new Error('API gagal mengembalikan gambar. Periksa API key & model.'));
+      img.src = imgUrl;
+      setTimeout(() => reject(new Error('Timeout setelah 90 detik')), 90000);
+    });
+    addCard(imgUrl, { prompt, model, width, height, seed: seed || 'random', nologo, enhance, priv });
+    showToast('Gambar berhasil digenerate! 🌸', '🌸');
+  } catch(e) {
+    showToast(e.message, '✕', true);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── LOADING ────────────────────────────────
+const MSGS = ['Generating your image…','Painting the pixels…','Consulting the AI…','Crafting your vision…','Almost there…'];
+let loadInt;
+function setLoading(on) {
+  const btn    = document.getElementById('genBtn');
+  const btnTxt = document.getElementById('genBtnTxt');
+  const wrap   = document.getElementById('loadingWrap');
+  const empty  = document.getElementById('emptyState');
+  btn.disabled = on;
+  btnTxt.textContent = on ? '⏳ Generating…' : '⚡ Generate Image';
+  if (on) {
+    empty.style.display = 'none'; wrap.classList.add('on');
+    let i = 0;
+    loadInt = setInterval(() => { document.getElementById('loadingMsg').textContent = MSGS[i++ % MSGS.length]; }, 2200);
+  } else {
+    wrap.classList.remove('on'); clearInterval(loadInt);
+    if (!history.length) empty.style.display = 'flex';
+  }
+}
+
+// ── ADD CARD ───────────────────────────────
+function addCard(src, meta) {
+  document.getElementById('emptyState').style.display = 'none';
+  history.unshift({ src, meta });
+  updateCount();
+  document.getElementById('clearBtn').style.display = 'inline-flex';
+
+  const card = document.createElement('div');
+  card.className = 'img-card';
+
+  const img = document.createElement('img');
+  img.src = src; img.alt = meta.prompt; img.loading = 'lazy';
+
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'img-meta';
+
+  const safe = src.replace(/'/g, "\\'");
+  const tags = document.createElement('div');
+  tags.className = 'meta-tags';
+  tags.innerHTML = `
+    <span class="mtag accent">${meta.model}</span>
+    <span class="mtag">${meta.width}×${meta.height}</span>
+    <span class="mtag">seed: ${meta.seed}</span>
+    ${meta.nologo  ? '<span class="mtag orange">no logo</span>' : ''}
+    ${meta.enhance ? '<span class="mtag orange">enhanced</span>' : ''}
+    ${meta.priv    ? '<span class="mtag">🔒 private</span>' : ''}
+  `;
+
+  const acts = document.createElement('div');
+  acts.className = 'img-actions';
+  acts.innerHTML = `
+    <button class="btn btn-sm" onclick="dlImage('${safe}','${encodeURIComponent(meta.prompt.slice(0,20))}')">⬇ Download</button>
+    <button class="btn btn-sm" onclick="cpyUrl('${safe}')">🔗 Copy URL</button>
+  `;
+
+  metaDiv.appendChild(tags);
+  metaDiv.appendChild(acts);
+  card.appendChild(img);
+  card.appendChild(metaDiv);
+  document.getElementById('outBody').insertBefore(card, document.getElementById('outBody').firstChild);
+  addThumb(src);
+}
+
+function addThumb(src) {
+  const strip = document.getElementById('historyStrip');
+  strip.style.display = 'flex';
+  const t = document.createElement('div');
+  t.className = 'h-thumb';
+  t.innerHTML = `<img src="${src}" />`;
+  t.onclick = () => document.querySelector('.img-card img')?.scrollIntoView({ behavior:'smooth' });
+  strip.appendChild(t);
+}
+
+function updateCount() {
+  const el = document.getElementById('outCount');
+  el.textContent = history.length;
+  el.style.display = history.length ? 'inline-flex' : 'none';
+}
+
+function clearAll() {
+  history = [];
+  document.querySelectorAll('.img-card').forEach(c => c.remove());
+  document.getElementById('historyStrip').querySelectorAll('.h-thumb').forEach(t => t.remove());
+  document.getElementById('historyStrip').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('clearBtn').style.display = 'none';
+  updateCount();
+  showToast('Semua gambar dihapus.', '🗑');
+}
+
+function dlImage(url, name) {
+  const a = document.createElement('a');
+  a.href = url; a.download = `pollinova-${name}-${Date.now()}.jpg`;
+  a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('Download dimulai!', '⬇');
+}
+function cpyUrl(url) {
+  navigator.clipboard.writeText(url).then(() => showToast('URL disalin!', '🔗')).catch(() => showToast('Gagal salin URL.', '✕', true));
+}
+
+function showToast(msg, icon = '✓', err = false) {
+  const el = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').textContent  = msg;
+  el.style.borderColor = err ? 'rgba(232,86,42,0.4)' : 'rgba(62,207,142,0.35)';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3600);
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateImage();
+});
+</script>
+</body>
+</html>
