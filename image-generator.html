@@ -177,6 +177,30 @@
       box-shadow: inset 0 0 0 1px rgba(124,92,252,0.08);
     }
     .field-note { font-size: 0.67rem; color: var(--muted); line-height: 1.55; margin-top: 6px; }
+    .enhance-hint,
+    .model-aware-tag,
+    .model-count,
+    .model-info-box,
+    .field-note,
+    .enhance-model-badge,
+    .ep-hint,
+    .api-badge,
+    .status-pill,
+    .history-label,
+    .out-count,
+    .empty-sub { display: none !important; }
+    .key-info span { display: none; }
+
+    .vision-wrap { display: flex; flex-direction: column; gap: 10px; }
+    .vision-row { display: flex; gap: 8px; align-items: center; }
+    .vision-preview {
+      position: relative; width: 100%; min-height: 86px;
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--input-bg);
+    }
+    .vision-preview img {
+      display: block; width: 100%; max-height: 160px; object-fit: cover;
+    }
+    .vision-preview.empty { display: none; }
 
     /* ── TOGGLES ── */
     .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -405,6 +429,17 @@
           <label>Prompt</label>
           <textarea id="userPrompt" placeholder="Describe your image… e.g. a mystical forest at dusk, volumetric light rays, oil painting style" rows="4"></textarea>
 
+          <div class="vision-wrap">
+            <input type="file" id="visionFileInput" accept="image/*" hidden />
+            <div class="vision-row">
+              <button class="btn btn-sm" type="button" onclick="pickVisionImage()">Upload Image</button>
+              <button class="btn btn-sm" type="button" id="visionClearBtn" onclick="clearVisionInput()" hidden>Clear</button>
+            </div>
+            <div class="vision-preview empty" id="visionPreview">
+              <img id="visionPreviewImg" alt="Reference preview" />
+            </div>
+          </div>
+
           <div class="enhance-bar">
             <span class="enhance-hint" id="enhanceHint">AI enhance follows the selected Pollinations model framework</span>
             <div class="model-aware-tag" id="modelAwareTag">
@@ -598,12 +633,14 @@
 // CONFIG
 // ════════════════════════════════════════════════
 const BASE = 'https://gen.pollinations.ai';
+const MEDIA_BASE = 'https://media.pollinations.ai';
 
 let apiKey        = localStorage.getItem('pollinova_key') || '';
 let imgModelsMeta = [];   // full metadata from API
 let videoModelsMeta = [];
 let history       = [];
 let mediaMode     = 'image';
+let visionInput   = { file: null, previewUrl: '', uploadedUrl: '', uploadPromise: null };
 
 // ════════════════════════════════════════════════
 // PER-MODEL SYSTEM PROMPTS
@@ -1050,6 +1087,16 @@ Describe the subject action first, then the camera move, then the atmosphere and
       'Prefer cinematic movement over frantic action'
     ]
   },
+  'seedance-pro': {
+    family: 'video',
+    frameworkName: 'Pollinations Seedance Pro Framework',
+    style: 'higher-adherence cinematic video',
+    guidance: `Use cleaner shot planning, stronger prompt adherence, and more deliberate motion direction than Seedance Lite.`,
+    rules: [
+      'Keep the shot intent explicit',
+      'Avoid conflicting motion or composition cues'
+    ]
+  },
   'veo': {
     family: 'video',
     frameworkName: 'Pollinations Veo Framework',
@@ -1094,6 +1141,16 @@ Describe how the subject and camera should move without rewriting the entire sce
     rules: [
       'Preserve the initial composition',
       'Focus on motion evolution rather than restating static details'
+    ]
+  },
+  'ltx-2': {
+    family: 'video',
+    frameworkName: 'Pollinations LTX-2 Framework',
+    style: 'fast text-to-video with audio',
+    guidance: `Keep motion and camera direction simple, clear, and efficient for fast video generation.`,
+    rules: [
+      'Prefer one readable motion beat',
+      'Use concise camera language'
     ]
   },
   'hailuo': {
@@ -1230,7 +1287,7 @@ function resolveModelProfile(imageModelId) {
     normalizedId.includes('klein') ? { family: 'flux' } :
     normalizedId.includes('zimage') ? { family: 'flux' } :
     normalizedId.includes('flux-2') ? { family: 'flux' } :
-    normalizedId.includes('video') || normalizedId.includes('seedance') || normalizedId.includes('veo') || normalizedId.includes('wan') || normalizedId.includes('hailuo') || normalizedId.includes('kling')
+    normalizedId.includes('video') || normalizedId.includes('seedance') || normalizedId.includes('veo') || normalizedId.includes('wan') || normalizedId.includes('hailuo') || normalizedId.includes('kling') || normalizedId.includes('ltx')
       ? { family: 'video' } :
     normalizedId.includes('turbo') ? { family: 'turbo' } :
     normalizedId.includes('stable') || normalizedId.includes('diffusion') || normalizedId.includes('sdxl') || normalizedId.includes('sd3') || normalizedId === 'sd'
@@ -1267,6 +1324,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('keyInputRow').style.display = 'none';
     document.getElementById('keySavedRow').classList.add('visible');
   }
+  document.getElementById('visionFileInput')?.addEventListener('change', onVisionFileSelected);
+  updateVisionUI();
   loadTextModels();
   loadMediaModels();
   updateModeUI();
@@ -1507,7 +1566,7 @@ async function loadMediaModelsUnified() {
       : '<span>No video models returned by endpoint</span>';
   } catch(e) {
     const imgFallback = ['kontext','nanobanana','nanobanana-2','nanobanana-pro','seedream5','gptimage','gptimage-large','flux','zimage','klein','klein-large','imagen-4','flux-2-dev','grok-imagine'];
-    const vidFallback = ['seedance','veo','wan2.2','wan2.6','grok-video'];
+    const vidFallback = ['seedance','seedance-pro','veo','wan','grok-video','ltx-2'];
     imgModelsMeta = [];
     videoModelsMeta = [];
     imgSel.innerHTML = '';
@@ -2187,6 +2246,360 @@ function dlMedia(url, name, ext = 'jpg') {
 
 function dlImage(url, name) {
   dlMedia(url, name, 'jpg');
+}
+
+function pickVisionImage() {
+  document.getElementById('visionFileInput')?.click();
+}
+
+function updateVisionUI() {
+  const preview = document.getElementById('visionPreview');
+  const img = document.getElementById('visionPreviewImg');
+  const clearBtn = document.getElementById('visionClearBtn');
+  const hasVision = !!(visionInput.previewUrl || visionInput.uploadedUrl);
+
+  if (!preview || !img || !clearBtn) return;
+  preview.classList.toggle('empty', !hasVision);
+  preview.hidden = !hasVision;
+  clearBtn.hidden = !hasVision;
+
+  if (hasVision) {
+    img.src = visionInput.previewUrl || visionInput.uploadedUrl;
+  } else {
+    img.removeAttribute('src');
+  }
+}
+
+function clearVisionInput(resetInput = true) {
+  if (visionInput.previewUrl && visionInput.previewUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(visionInput.previewUrl);
+  }
+  visionInput = { file: null, previewUrl: '', uploadedUrl: '', uploadPromise: null };
+  if (resetInput) {
+    const input = document.getElementById('visionFileInput');
+    if (input) input.value = '';
+  }
+  updateVisionUI();
+}
+
+function onVisionFileSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    clearVisionInput();
+    showToast('Only image files are supported.', '✕', true);
+    return;
+  }
+
+  clearVisionInput(false);
+  visionInput.file = file;
+  visionInput.previewUrl = URL.createObjectURL(file);
+  updateVisionUI();
+}
+
+async function ensureVisionUpload() {
+  if (!visionInput.file) return '';
+  if (visionInput.uploadedUrl) return visionInput.uploadedUrl;
+  if (visionInput.uploadPromise) return visionInput.uploadPromise;
+  if (!apiKey) throw new Error('Enter your API key first!');
+
+  const formData = new FormData();
+  formData.append('file', visionInput.file, visionInput.file.name || 'reference-image');
+
+  visionInput.uploadPromise = fetch(`${MEDIA_BASE}/upload`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}` },
+    body: formData
+  })
+    .then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
+      if (!data?.url) throw new Error('Upload failed: missing media URL');
+      visionInput.uploadedUrl = data.url;
+      updateVisionUI();
+      return data.url;
+    })
+    .finally(() => {
+      visionInput.uploadPromise = null;
+    });
+
+  return visionInput.uploadPromise;
+}
+
+function modelSupportsVisionInput(mode, modelId) {
+  const meta = getModelMetaByMode(mode, modelId);
+  if (meta && Array.isArray(meta.input_modalities)) {
+    return meta.input_modalities.includes('image');
+  }
+
+  const normalized = canonicalizeModelId(modelId);
+  const imageCapableModels = ['kontext','nanobanana','nanobanana-2','nanobanana-pro','seedream5','gptimage','gptimage-large','klein','klein-large','flux-2-dev'];
+  const videoCapableModels = ['veo','seedance','seedance-pro','wan','grok-video'];
+  return (mode === 'video' ? videoCapableModels : imageCapableModels).some(id => normalized.startsWith(id));
+}
+
+function buildEnhanceSystemPrompt(targetModelId, targetType = getSelectedGenerationType(), hasVision = !!visionInput.file) {
+  const profile = resolveModelProfile(targetModelId);
+  const rules = [
+    ...profile.rules,
+    targetType === 'video'
+      ? 'Preserve the user core idea. Add only motion, camera, pacing, and atmosphere details that improve the shot.'
+      : 'Preserve the user core idea. Add only concrete visual details that improve the final render.',
+    hasVision
+      ? 'A reference image may be attached. Treat it as the visual anchor for subject identity, composition, or style unless the user explicitly asks to change those parts.'
+      : 'Infer missing details only when they materially improve the result.',
+    `Rebuild the prompt using this order: ${profile.framework}.`,
+    'Return exactly one finished prompt with no quotes, no label, no bullets, and no explanation.'
+  ].map((rule, index) => `${index + 1}. ${rule}`).join('\n');
+
+  const avoidList = profile.avoid.map(item => `- ${item}`).join('\n');
+
+  return `You optimize prompts for Pollinations ${targetType} generation.
+
+Target ${targetType} model: ${targetModelId}
+Resolved framework: ${profile.frameworkName}
+Best structure: ${profile.framework}
+Preferred output style: ${profile.outputStyle}
+Ideal length: ${profile.wordRange}
+Style speciality: ${profile.style}
+
+Model guidance:
+${profile.guidance}
+
+Optimization rules:
+${rules}
+
+Avoid:
+${avoidList}
+
+Output contract:
+- one prompt only
+- ${profile.wordRange}
+- optimized for ${targetModelId}
+- ready to send directly to Pollinations`;
+}
+
+async function enhancePrompt() {
+  const raw         = document.getElementById('userPrompt').value.trim();
+  const textModel   = document.getElementById('textModel').value;
+  const targetType  = getSelectedGenerationType();
+  const targetModel = getSelectedGenerationModel();
+  const profile     = resolveModelProfile(targetModel);
+
+  if (!raw)         { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey)      { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!textModel)   { showToast('Select a text model first!', '⚠', true); return; }
+  if (!targetModel) { showToast(`Select a ${targetType} model first!`, '⚠', true); return; }
+
+  const btn = document.getElementById('enhanceBtn');
+  const txt = document.getElementById('enhanceBtnTxt');
+  btn.disabled = true;
+  txt.textContent = '⏳ Enhancing…';
+
+  try {
+    const referenceImageUrl = modelSupportsVisionInput(targetType, targetModel) ? await ensureVisionUpload() : '';
+    const systemPrompt = buildEnhanceSystemPrompt(targetModel, targetType, !!referenceImageUrl);
+    const userContent = [{
+      type: 'text',
+      text: referenceImageUrl
+        ? `User idea:\n${raw}\n\nA reference image is attached. Use it as visual guidance. Return only the finished ${targetType} prompt.`
+        : `User idea:\n${raw}\n\nReturn only the finished ${targetType} prompt.`
+    }];
+    if (referenceImageUrl) {
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: referenceImageUrl, detail: 'auto' }
+      });
+    }
+
+    const res = await fetch(`${BASE}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: textModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent }
+        ],
+        temperature: profile.temperature,
+        max_tokens: profile.maxTokens
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+
+    const enhanced = sanitizeEnhancedPrompt(data.choices?.[0]?.message?.content);
+    if (!enhanced) throw new Error('Empty response from model');
+
+    document.getElementById('enhancedPrompt').value = enhanced;
+    document.getElementById('enhancePanel').style.display = 'block';
+  } catch(e) {
+    showToast(`Enhancement failed: ${e.message}`, '✕', true);
+  } finally {
+    btn.disabled = false;
+    txt.textContent = '✦ Enhance';
+  }
+}
+
+async function generateImage() {
+  const prompt = getPrompt();
+  const model  = document.getElementById('imgModel').value;
+
+  if (!prompt) { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey) { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!model)  { showToast('Select an image model first!', '⚠', true); return; }
+
+  const width  = document.getElementById('imgW').value;
+  const height = document.getElementById('imgH').value;
+  const seed   = document.getElementById('seedVal').value;
+  const nologo = document.getElementById('optNologo').checked;
+  const enhance= document.getElementById('optEnhance').checked;
+  const priv   = document.getElementById('optPrivate').checked;
+
+  setLoading(true);
+
+  try {
+    const referenceImageUrl = modelSupportsVisionInput('image', model) ? await ensureVisionUpload() : '';
+    const params = new URLSearchParams({ model, width, height, key: apiKey });
+    if (seed)    params.set('seed', seed);
+    if (nologo)  params.set('nologo', 'true');
+    if (enhance) params.set('enhance', 'true');
+    if (priv)    params.set('private', 'true');
+    if (referenceImageUrl) params.set('image', referenceImageUrl);
+
+    const imgUrl = `${BASE}/image/${encodeURIComponent(prompt)}?${params}`;
+
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = resolve;
+      img.onerror = () => reject(new Error('API failed to return an image. Check your API key and model.'));
+      img.src = imgUrl;
+      setTimeout(() => reject(new Error('Timeout after 90 seconds')), 90000);
+    });
+
+    addCard(imgUrl, { type: 'image', prompt, model, width, height, seed: seed || 'random', nologo, enhance, priv, reference: !!referenceImageUrl });
+    showToast('Image generated successfully!', '🌸');
+  } catch(e) {
+    showToast(e.message, '✕', true);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function generateVideo() {
+  const prompt = getPrompt();
+  const model  = document.getElementById('vidModel').value;
+
+  if (!prompt) { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey) { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!model)  { showToast('Select a video model first!', '⚠', true); return; }
+
+  const aspectRatio = document.getElementById('videoAspect').value;
+  const duration    = document.getElementById('videoDuration').value;
+  const seed        = document.getElementById('seedVal').value;
+  const audio       = document.getElementById('optVideoAudio').checked;
+  const priv        = document.getElementById('optPrivate').checked;
+
+  setLoading(true);
+
+  try {
+    const referenceImageUrl = modelSupportsVisionInput('video', model) ? await ensureVisionUpload() : '';
+    const params = new URLSearchParams({ model, key: apiKey, duration, aspectRatio });
+    if (seed)  params.set('seed', seed);
+    if (audio) params.set('audio', 'true');
+    if (priv)  params.set('private', 'true');
+    if (referenceImageUrl) params.set('image', referenceImageUrl);
+
+    const videoUrl = `${BASE}/video/${encodeURIComponent(prompt)}?${params}`;
+
+    await waitForVideoReady(videoUrl);
+    addCard(videoUrl, { type: 'video', prompt, model, aspectRatio, duration, seed: seed || 'random', audio, priv, reference: !!referenceImageUrl });
+    showToast('Video generated successfully!', '🎬');
+  } catch(e) {
+    showToast(e.message, '✕', true);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function addCard(src, meta) {
+  const type = meta.type || 'image';
+  const entryId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  document.getElementById('emptyState').style.display = 'none';
+  history.unshift({ src, meta: { ...meta, type } });
+  updateCount();
+  document.getElementById('clearBtn').style.display = 'inline-flex';
+
+  const card = document.createElement('div');
+  card.className = 'media-card';
+  card.id = entryId;
+
+  const frame = document.createElement('div');
+  frame.className = 'media-frame';
+
+  if (type === 'video') {
+    const video = document.createElement('video');
+    video.src = src;
+    video.controls = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    frame.appendChild(video);
+  } else {
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = meta.prompt;
+    img.loading = 'lazy';
+    frame.appendChild(img);
+  }
+
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'img-meta';
+
+  const safe = src.replace(/'/g, "\\'");
+  const promptName = encodeURIComponent((meta.prompt || 'media').slice(0, 20));
+  const ext = type === 'video' ? 'mp4' : 'jpg';
+  const tags = document.createElement('div');
+  tags.className = 'meta-tags';
+  tags.innerHTML = type === 'video'
+    ? `
+      <span class="mtag accent">${meta.model}</span>
+      <span class="mtag orange">video</span>
+      <span class="mtag">${meta.aspectRatio || '16:9'} · ${meta.duration || 5}s</span>
+      <span class="mtag">seed: ${meta.seed}</span>
+      ${meta.audio ? '<span class="mtag orange">audio</span>' : ''}
+      ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
+      ${meta.priv ? '<span class="mtag">🔒 private</span>' : ''}
+    `
+    : `
+      <span class="mtag accent">${meta.model}</span>
+      <span class="mtag">${meta.width}×${meta.height}</span>
+      <span class="mtag">seed: ${meta.seed}</span>
+      ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
+      ${meta.nologo ? '<span class="mtag orange">no logo</span>' : ''}
+      ${meta.enhance ? '<span class="mtag orange">enhanced</span>' : ''}
+      ${meta.priv ? '<span class="mtag">🔒 private</span>' : ''}
+    `;
+
+  const acts = document.createElement('div');
+  acts.className = 'img-actions';
+  acts.innerHTML = `
+    <button class="btn btn-sm" onclick="dlMedia('${safe}','${promptName}','${ext}')">⬇ Download</button>
+    <button class="btn btn-sm" onclick="cpyUrl('${safe}')">🔗 Copy URL</button>
+  `;
+
+  metaDiv.appendChild(tags);
+  metaDiv.appendChild(acts);
+  card.appendChild(frame);
+  card.appendChild(metaDiv);
+  document.getElementById('outBody').insertBefore(card, document.getElementById('outBody').firstChild);
+  addThumb(src, type, entryId);
 }
 
 document.addEventListener('keydown', e => {
