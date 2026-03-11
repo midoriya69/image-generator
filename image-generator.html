@@ -165,6 +165,18 @@
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
     .seed-row { display: flex; gap: 7px; align-items: flex-end; }
     .seed-row input { flex: 1; }
+    [hidden] { display: none !important; }
+
+    .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mode-chip {
+      background: var(--input-bg); border: 1px solid var(--border); color: var(--muted);
+      padding: 10px 14px; font-size: 0.78rem; letter-spacing: 0.4px;
+    }
+    .mode-chip.active {
+      background: rgba(124,92,252,0.14); border-color: rgba(124,92,252,0.35); color: var(--accent2);
+      box-shadow: inset 0 0 0 1px rgba(124,92,252,0.08);
+    }
+    .field-note { font-size: 0.67rem; color: var(--muted); line-height: 1.55; margin-top: 6px; }
 
     /* ── TOGGLES ── */
     .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -292,7 +304,7 @@
     .ring::after { inset: 0; border: 2px solid transparent; border-top-color: var(--accent); animation: orb-spin 0.75s linear infinite; }
     .loading-msg { font-size: 0.82rem; color: var(--muted); font-style: italic; }
 
-    .img-card {
+    .img-card, .media-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
       animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1);
     }
@@ -300,7 +312,10 @@
       from { opacity: 0; transform: scale(0.97) translateY(12px); }
       to   { opacity: 1; transform: scale(1) translateY(0); }
     }
-    .img-card img { width: 100%; display: block; max-height: 72vh; object-fit: contain; background: #08080f; }
+    .img-card img,
+    .media-card img,
+    .media-card video { width: 100%; display: block; max-height: 72vh; object-fit: contain; background: #08080f; }
+    .media-frame { background: #08080f; }
     .img-meta { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
     .meta-tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .mtag {
@@ -322,7 +337,7 @@
       border: 2px solid transparent; transition: border-color 0.2s; flex-shrink: 0;
     }
     .h-thumb:hover { border-color: var(--accent); }
-    .h-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .h-thumb img, .h-thumb video { width: 100%; height: 100%; object-fit: cover; background: #08080f; }
 
     .toast {
       position: fixed; bottom: 24px; right: 24px; z-index: 999;
@@ -434,8 +449,16 @@
 
         <div class="divider"></div>
 
-        <!-- IMAGE MODEL -->
         <div>
+          <label>Generation Mode</label>
+          <div class="mode-switch">
+            <button class="btn mode-chip active" id="modeImageBtn" type="button" onclick="setMediaMode('image')">Image</button>
+            <button class="btn mode-chip" id="modeVideoBtn" type="button" onclick="setMediaMode('video')">Video</button>
+          </div>
+        </div>
+
+        <!-- IMAGE MODEL -->
+        <div id="imageModelGroup">
           <label>Image Model</label>
           <div class="select-wrap">
             <select id="imgModel" onchange="onImgModelChange()">
@@ -444,11 +467,25 @@
             <div class="select-status loading" id="imgModelStatus"></div>
           </div>
           <div class="model-count" id="imgModelCount"></div>
-          <div class="model-info-box" id="modelInfoBox"></div>
+          <div class="model-info-box" id="imgModelInfoBox"></div>
+        </div>
+
+        <!-- VIDEO MODEL -->
+        <div id="videoModelGroup" hidden>
+          <label>Video Model</label>
+          <div class="select-wrap">
+            <select id="vidModel" onchange="onVidModelChange()">
+              <option value="">⏳ Loading video models…</option>
+            </select>
+            <div class="select-status loading" id="vidModelStatus"></div>
+          </div>
+          <div class="model-count" id="vidModelCount"></div>
+          <div class="model-info-box" id="vidModelInfoBox"></div>
+          <div class="field-note">Video jobs can take longer than image generation. Some models may need 2-4 minutes.</div>
         </div>
 
         <!-- DIMENSIONS -->
-        <div class="grid2">
+        <div class="grid2" id="imageSizeGroup">
           <div>
             <label>Width (px)</label>
             <select id="imgW">
@@ -471,6 +508,27 @@
           </div>
         </div>
 
+        <div class="grid2" id="videoSettingsGroup" hidden>
+          <div>
+            <label>Aspect Ratio</label>
+            <select id="videoAspect">
+              <option value="16:9" selected>16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="1:1">1:1</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+            </select>
+          </div>
+          <div>
+            <label>Duration (sec)</label>
+            <select id="videoDuration">
+              <option value="5" selected>5</option>
+              <option value="8">8</option>
+              <option value="10">10</option>
+            </select>
+          </div>
+        </div>
+
         <!-- SEED -->
         <div>
           <label>Seed</label>
@@ -485,13 +543,14 @@
         <div>
           <label>Options</label>
           <div class="toggles">
-            <label class="toggle-item"><input type="checkbox" id="optNologo" /><span>🚫</span> No Logo</label>
-            <label class="toggle-item"><input type="checkbox" id="optEnhance" /><span>✨</span> Auto Enhance</label>
+            <label class="toggle-item" id="optNologoWrap"><input type="checkbox" id="optNologo" /><span>🚫</span> No Logo</label>
+            <label class="toggle-item" id="optEnhanceWrap"><input type="checkbox" id="optEnhance" /><span>✨</span> Auto Enhance</label>
+            <label class="toggle-item" id="optVideoAudioWrap" hidden><input type="checkbox" id="optVideoAudio" /><span>🔊</span> With Audio</label>
             <label class="toggle-item"><input type="checkbox" id="optPrivate" /><span>🔒</span> Private</label>
           </div>
         </div>
 
-        <button class="btn btn-primary" id="genBtn" onclick="generateImage()">
+        <button class="btn btn-primary" id="genBtn" onclick="generateMedia()">
           <span id="genBtnTxt">⚡ Generate Image</span>
         </button>
 
@@ -514,12 +573,12 @@
     <div class="out-body" id="outBody">
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">🌸</div>
-        <div class="empty-title">No images yet</div>
-        <div class="empty-sub">Enter your API key, write a prompt, pick a model, and hit Generate.<br/>Shortcut: <kbd style="background:var(--border);padding:2px 6px;border-radius:4px;font-size:0.75rem">Ctrl+Enter</kbd></div>
+        <div class="empty-title">No media yet</div>
+        <div class="empty-sub">Enter your API key, write a prompt, pick image or video mode, and hit Generate.<br/>Shortcut: <kbd style="background:var(--border);padding:2px 6px;border-radius:4px;font-size:0.75rem">Ctrl+Enter</kbd></div>
       </div>
       <div class="loading-wrap" id="loadingWrap">
         <div class="ring"></div>
-        <div class="loading-msg" id="loadingMsg">Generating your image…</div>
+        <div class="loading-msg" id="loadingMsg">Generating your media…</div>
       </div>
     </div>
     <div class="history-strip" id="historyStrip">
@@ -542,7 +601,9 @@ const BASE = 'https://gen.pollinations.ai';
 
 let apiKey        = localStorage.getItem('pollinova_key') || '';
 let imgModelsMeta = [];   // full metadata from API
+let videoModelsMeta = [];
 let history       = [];
+let mediaMode     = 'image';
 
 // ════════════════════════════════════════════════
 // PER-MODEL SYSTEM PROMPTS
@@ -680,6 +741,28 @@ Favor clarity, product readability, and art direction over excessive scene clutt
       'overcrowded scenes',
       'mixed art directions',
       'unnecessary lore or storytelling'
+    ]
+  },
+  'video': {
+    label: 'Video',
+    frameworkName: 'Pollinations Video Framework',
+    framework: 'Subject + Motion + Camera + Environment + Lighting + Style + Ending behavior',
+    outputStyle: 'cinematic motion prompt',
+    wordRange: '50-120 words',
+    temperature: 0.74,
+    maxTokens: 340,
+    style: 'motion-first cinematic video',
+    guidance: `Write for moving images, not still frames.
+Describe the subject, what motion happens, how the camera behaves, the environment, the lighting, and the style. Make motion readable and physically coherent.`,
+    rules: [
+      'Describe the main motion explicitly',
+      'Include a camera movement or framing note only when it improves the shot',
+      'Keep the action coherent from start to finish'
+    ],
+    avoid: [
+      'still-image phrasing with no motion',
+      'overly complex multi-scene stories',
+      'contradictory camera directions'
     ]
   },
   'default': {
@@ -944,6 +1027,87 @@ Use decisive style direction and clear focal hierarchy.`,
       'Avoid vague filler language'
     ]
   },
+  'grok-video': {
+    family: 'video',
+    frameworkName: 'Pollinations Grok Video Framework',
+    style: 'creative motion video generation',
+    guidance: `Lean into dynamic motion, strong focal action, and visually bold camera language.
+Keep the shot readable and cinematic rather than overcomplicated.`,
+    rules: [
+      'Describe the motion arc clearly',
+      'Use one dominant camera move or framing choice',
+      'Keep the scene visually decisive'
+    ]
+  },
+  'seedance': {
+    family: 'video',
+    frameworkName: 'Pollinations Seedance Framework',
+    style: 'cinematic text-to-video',
+    guidance: `Favor smooth motion, coherent shot design, and elegant camera movement.
+Describe the subject action first, then the camera move, then the atmosphere and finish.`,
+    rules: [
+      'Use one coherent shot concept',
+      'Prefer cinematic movement over frantic action'
+    ]
+  },
+  'veo': {
+    family: 'video',
+    frameworkName: 'Pollinations Veo Framework',
+    wordRange: '60-130 words',
+    maxTokens: 380,
+    style: 'high-fidelity cinematic video',
+    guidance: `Use detailed but coherent shot direction with clear subject motion, camera behavior, environment, lighting, and finish.`,
+    rules: [
+      'Layer motion, environment, and lighting without changing the core shot',
+      'Keep the scene physically coherent'
+    ]
+  },
+  'wan': {
+    family: 'video',
+    frameworkName: 'Pollinations Wan Framework',
+    style: 'video generation with optional audio support',
+    guidance: `Write a motion-first prompt that can support synchronized ambience or sound when audio is enabled.
+Describe the main action, the atmosphere, and any sound-relevant cues naturally.`,
+    rules: [
+      'Describe visible action first',
+      'If audio matters, imply it through the scene rather than writing a soundtrack list'
+    ]
+  },
+  'wan2.2': {
+    family: 'video',
+    frameworkName: 'Pollinations Wan 2.2 Framework',
+    style: 'coherent cinematic video',
+    guidance: `Use clean shot direction, clear motion, and stable scene continuity.`
+  },
+  'wan2.6': {
+    family: 'video',
+    frameworkName: 'Pollinations Wan 2.6 Framework',
+    style: 'cinematic video with stronger motion fidelity',
+    guidance: `Use slightly richer motion, atmosphere, and finish detail while keeping the shot coherent.`
+  },
+  'wan2.6-i2v': {
+    family: 'video',
+    frameworkName: 'Pollinations Wan 2.6 I2V Framework',
+    style: 'image-to-video motion continuation',
+    guidance: `Assume the first frame should stay visually anchored.
+Describe how the subject and camera should move without rewriting the entire scene.`,
+    rules: [
+      'Preserve the initial composition',
+      'Focus on motion evolution rather than restating static details'
+    ]
+  },
+  'hailuo': {
+    family: 'video',
+    frameworkName: 'Pollinations Hailuo Framework',
+    style: 'stylized motion video',
+    guidance: `Favor expressive motion and a readable hero shot with one clear visual direction.`
+  },
+  'kling': {
+    family: 'video',
+    frameworkName: 'Pollinations Kling Framework',
+    style: 'cinematic motion storytelling',
+    guidance: `Describe subject motion, shot framing, and atmosphere in one coherent cinematic prompt.`
+  },
   'imagen': {
     family: 'instruction',
     style: 'clean natural-language generation',
@@ -974,7 +1138,12 @@ const MODEL_ALIASES = {
   'klein-9b': 'klein-large',
   'imagen': 'imagen-4',
   'flux-2': 'flux-2-dev',
-  'flux2-dev': 'flux-2-dev'
+  'flux2-dev': 'flux-2-dev',
+  'grokvideo': 'grok-video',
+  'veo3': 'veo',
+  'wan-2.2': 'wan2.2',
+  'wan-2.6': 'wan2.6',
+  'wan-2.6-i2v': 'wan2.6-i2v'
 };
 
 // Fallback profile for unknown models
@@ -1012,6 +1181,13 @@ function isImageModelEntry(model) {
   if (!model || typeof model !== 'object') return false;
   const outputs = Array.isArray(model.output_modalities) ? model.output_modalities : [];
   return !outputs.length || outputs.includes('image');
+}
+
+function isVideoModelEntry(model) {
+  if (typeof model === 'string') return false;
+  if (!model || typeof model !== 'object') return false;
+  const outputs = Array.isArray(model.output_modalities) ? model.output_modalities : [];
+  return outputs.includes('video');
 }
 
 function mergeModelProfile(profile, normalizedId) {
@@ -1054,6 +1230,8 @@ function resolveModelProfile(imageModelId) {
     normalizedId.includes('klein') ? { family: 'flux' } :
     normalizedId.includes('zimage') ? { family: 'flux' } :
     normalizedId.includes('flux-2') ? { family: 'flux' } :
+    normalizedId.includes('video') || normalizedId.includes('seedance') || normalizedId.includes('veo') || normalizedId.includes('wan') || normalizedId.includes('hailuo') || normalizedId.includes('kling')
+      ? { family: 'video' } :
     normalizedId.includes('turbo') ? { family: 'turbo' } :
     normalizedId.includes('stable') || normalizedId.includes('diffusion') || normalizedId.includes('sdxl') || normalizedId.includes('sd3') || normalizedId === 'sd'
       ? { family: 'stable-diffusion' } :
@@ -1090,7 +1268,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('keySavedRow').classList.add('visible');
   }
   loadTextModels();
-  loadImageModels();
+  loadMediaModels();
+  updateModeUI();
 });
 
 // ── API KEY ────────────────────────────────────
@@ -1103,7 +1282,7 @@ function saveKey() {
   document.getElementById('keySavedRow').classList.add('visible');
   showToast('API Key saved!', '🔑');
   loadTextModels();
-  loadImageModels();
+  loadMediaModels();
 }
 function changeKey() {
   document.getElementById('keyInputRow').style.display = 'flex';
@@ -1146,7 +1325,55 @@ async function loadTextModels() {
 }
 
 // ── LOAD IMAGE MODELS ──────────────────────────
-async function loadImageModels() {
+function populateModelSelect(selectEl, models) {
+  selectEl.innerHTML = '';
+  models.forEach(m => {
+    const id   = getModelEntryId(m);
+    const desc = (typeof m === 'object' && m.description) ? ` â€” ${m.description.slice(0, 40)}` : '';
+    selectEl.add(new Option(`${id}${desc}`, id));
+  });
+}
+
+function getSelectedGenerationModel() {
+  return mediaMode === 'video'
+    ? document.getElementById('vidModel').value
+    : document.getElementById('imgModel').value;
+}
+
+function getSelectedGenerationType() {
+  return mediaMode;
+}
+
+function getModelMetaByMode(mode, modelId) {
+  const list = mode === 'video' ? videoModelsMeta : imgModelsMeta;
+  return list.find(x => typeof x === 'object' && getModelEntryId(x) === modelId) || null;
+}
+
+function setMediaMode(mode) {
+  if (!['image', 'video'].includes(mode)) return;
+  mediaMode = mode;
+  updateModeUI();
+  if (mode === 'video') onVidModelChange();
+  else onImgModelChange();
+}
+
+function updateModeUI() {
+  const isVideo = mediaMode === 'video';
+  document.getElementById('modeImageBtn').classList.toggle('active', !isVideo);
+  document.getElementById('modeVideoBtn').classList.toggle('active', isVideo);
+  document.getElementById('imageModelGroup').hidden = isVideo;
+  document.getElementById('videoModelGroup').hidden = !isVideo;
+  document.getElementById('imageSizeGroup').hidden = isVideo;
+  document.getElementById('videoSettingsGroup').hidden = !isVideo;
+  document.getElementById('optNologoWrap').hidden = isVideo;
+  document.getElementById('optEnhanceWrap').hidden = isVideo;
+  document.getElementById('optVideoAudioWrap').hidden = !isVideo;
+  document.getElementById('genBtnTxt').textContent = isVideo ? 'ðŸŽ¬ Generate Video' : 'âš¡ Generate Image';
+  updateModelAwareBadge(getSelectedGenerationModel());
+  updateEnhanceHint(getSelectedGenerationModel(), mediaMode);
+}
+
+async function loadMediaModels() {
   const sel    = document.getElementById('imgModel');
   const status = document.getElementById('imgModelStatus');
   const count  = document.getElementById('imgModelCount');
@@ -1237,6 +1464,120 @@ function updateEnhanceHint(modelId) {
 
   const profile = resolveModelProfile(modelId);
   hint.textContent = `AI enhance: ${profile.framework}`;
+}
+
+function loadMediaModels() {
+  return loadMediaModelsUnified();
+}
+
+async function loadMediaModelsUnified() {
+  const imgSel    = document.getElementById('imgModel');
+  const imgStatus = document.getElementById('imgModelStatus');
+  const imgCount  = document.getElementById('imgModelCount');
+  const vidSel    = document.getElementById('vidModel');
+  const vidStatus = document.getElementById('vidModelStatus');
+  const vidCount  = document.getElementById('vidModelCount');
+
+  imgStatus.className = 'select-status loading';
+  vidStatus.className = 'select-status loading';
+  imgSel.innerHTML = '<option value="">Loading…</option>';
+  vidSel.innerHTML = '<option value="">Loading…</option>';
+  const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
+
+  try {
+    const res  = await fetch(`${BASE}/image/models`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) throw new Error('Empty');
+
+    const imageModels = data.filter(isImageModelEntry);
+    const videoModels = data.filter(isVideoModelEntry);
+    if (!imageModels.length) throw new Error('No image models');
+
+    imgModelsMeta = imageModels;
+    videoModelsMeta = videoModels;
+    populateModelSelect(imgSel, imageModels);
+    populateModelSelect(vidSel, videoModels);
+
+    imgStatus.className = 'select-status ok';
+    imgCount.innerHTML  = `<span>${imageModels.length} image models available</span> <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
+    vidStatus.className = videoModels.length ? 'select-status ok' : 'select-status err';
+    vidCount.innerHTML  = videoModels.length
+      ? `<span>${videoModels.length} video models available</span> <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`
+      : '<span>No video models returned by endpoint</span>';
+  } catch(e) {
+    const imgFallback = ['kontext','nanobanana','nanobanana-2','nanobanana-pro','seedream5','gptimage','gptimage-large','flux','zimage','klein','klein-large','imagen-4','flux-2-dev','grok-imagine'];
+    const vidFallback = ['seedance','veo','wan2.2','wan2.6','grok-video'];
+    imgModelsMeta = [];
+    videoModelsMeta = [];
+    imgSel.innerHTML = '';
+    vidSel.innerHTML = '';
+    imgFallback.forEach(m => imgSel.add(new Option(m, m)));
+    vidFallback.forEach(m => vidSel.add(new Option(m, m)));
+    imgStatus.className = 'select-status err';
+    vidStatus.className = 'select-status err';
+    imgCount.innerHTML  = '<span>Using fallback image model list</span>';
+    vidCount.innerHTML  = '<span>Using fallback video model list</span>';
+  }
+
+  onImgModelChange();
+  onVidModelChange();
+  updateModeUI();
+}
+
+function renderModelInfo(mode) {
+  const isVideo = mode === 'video';
+  const id = isVideo ? document.getElementById('vidModel').value : document.getElementById('imgModel').value;
+  const box = document.getElementById(isVideo ? 'vidModelInfoBox' : 'imgModelInfoBox');
+  const profile = resolveModelProfile(id);
+
+  if (mediaMode === mode) {
+    updateModelAwareBadge(id);
+    updateEnhanceHint(id, mode);
+  }
+
+  if (!box) return;
+  if (!id) { box.style.display = 'none'; return; }
+
+  const meta = getModelMetaByMode(mode, id);
+  const parts = [
+    `<b>Framework:</b> ${profile.framework}`,
+    `<b>Shape:</b> ${profile.outputStyle}`,
+    `<b>Length:</b> ${profile.wordRange}`
+  ];
+
+  if (meta) {
+    if (meta.description) parts.push(`<b>Info:</b> ${meta.description}`);
+    if (meta.type) parts.push(`<b>Type:</b> ${meta.type}`);
+    if (Array.isArray(meta.input_modalities) && meta.input_modalities.length) parts.push(`<b>Inputs:</b> ${meta.input_modalities.join(', ')}`);
+    if (Array.isArray(meta.output_modalities) && meta.output_modalities.length) parts.push(`<b>Outputs:</b> ${meta.output_modalities.join(', ')}`);
+    if (meta.pollen !== undefined) parts.push(`<b>Pollen/req:</b> ${meta.pollen}`);
+  } else if (isVideo) {
+    parts.push('<b>Output:</b> video');
+  }
+
+  box.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+  box.style.display = parts.length ? 'block' : 'none';
+}
+
+function onImgModelChange() {
+  renderModelInfo('image');
+}
+
+function onVidModelChange() {
+  renderModelInfo('video');
+}
+
+function updateEnhanceHint(modelId, mode = mediaMode) {
+  const hint = document.getElementById('enhanceHint');
+  if (!hint) return;
+  if (!modelId) {
+    hint.textContent = 'AI enhance follows the selected Pollinations model framework';
+    return;
+  }
+
+  const profile = resolveModelProfile(modelId);
+  hint.textContent = `AI ${mode} enhance: ${profile.framework}`;
 }
 
 // ── SEED ──────────────────────────────────────
@@ -1363,6 +1704,101 @@ function clearEnhanced() {
   document.getElementById('enhancePanel').style.display = 'none';
 }
 
+function buildEnhanceSystemPrompt(targetModelId, targetType = getSelectedGenerationType()) {
+  const profile = resolveModelProfile(targetModelId);
+  const rules = [
+    ...profile.rules,
+    targetType === 'video'
+      ? 'Preserve the user core idea. Add only motion, camera, pacing, and atmosphere details that improve the shot.'
+      : 'Preserve the user core idea. Only infer missing visual details that strengthen the image.',
+    `Rebuild the prompt using this order: ${profile.framework}.`,
+    'Return exactly one finished prompt with no quotes, no label, no bullets, and no explanation.'
+  ].map((rule, index) => `${index + 1}. ${rule}`).join('\n');
+
+  const avoidList = profile.avoid.map(item => `- ${item}`).join('\n');
+
+  return `You optimize prompts for Pollinations ${targetType} generation.
+
+Target ${targetType} model: ${targetModelId}
+Resolved framework: ${profile.frameworkName}
+Best structure: ${profile.framework}
+Preferred output style: ${profile.outputStyle}
+Ideal length: ${profile.wordRange}
+Style speciality: ${profile.style}
+
+Model guidance:
+${profile.guidance}
+
+Optimization rules:
+${rules}
+
+Avoid:
+${avoidList}
+
+Output contract:
+- one prompt only
+- ${profile.wordRange}
+- optimized for ${targetModelId}
+- ready to send directly to Pollinations`;
+}
+
+async function enhancePrompt() {
+  const raw         = document.getElementById('userPrompt').value.trim();
+  const textModel   = document.getElementById('textModel').value;
+  const targetType  = getSelectedGenerationType();
+  const targetModel = getSelectedGenerationModel();
+  const profile     = resolveModelProfile(targetModel);
+
+  if (!raw)         { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey)      { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!textModel)   { showToast('Select a text model first!', '⚠', true); return; }
+  if (!targetModel) { showToast(`Select a ${targetType} model first!`, '⚠', true); return; }
+
+  const btn = document.getElementById('enhanceBtn');
+  const txt = document.getElementById('enhanceBtnTxt');
+  btn.disabled = true;
+  txt.textContent = '⏳ Enhancing…';
+
+  const systemPrompt = buildEnhanceSystemPrompt(targetModel, targetType);
+  const userPrompt = `User idea:\n${raw}\n\nReturn only the finished ${targetType} prompt.`;
+
+  try {
+    const res = await fetch(`${BASE}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: textModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userPrompt }
+        ],
+        temperature: profile.temperature,
+        max_tokens: profile.maxTokens
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+
+    const enhanced = sanitizeEnhancedPrompt(data.choices?.[0]?.message?.content);
+    if (!enhanced) throw new Error('Empty response from model');
+
+    document.getElementById('enhancedPrompt').value = enhanced;
+    document.getElementById('enhancePanel').style.display = 'block';
+    document.getElementById('enhanceModelBadge').textContent = `${profile.frameworkName} · ${targetType} · via ${textModel}`;
+
+    showToast(`Enhanced for ${targetType} model ${targetModel}!`, '✦');
+  } catch(e) {
+    showToast(`Enhancement failed: ${e.message}`, '✕', true);
+  } finally {
+    btn.disabled = false;
+    txt.textContent = '✦ Enhance';
+  }
+}
+
 // ════════════════════════════════════════════════
 // GENERATE  →  GET /image/{prompt}
 // ════════════════════════════════════════════════
@@ -1400,6 +1836,70 @@ async function generateImage() {
     });
     addCard(imgUrl, { prompt, model, width, height, seed: seed || 'random', nologo, enhance, priv });
     showToast('Image generated successfully! 🌸', '🌸');
+  } catch(e) {
+    showToast(e.message, '✕', true);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function generateMedia() {
+  return mediaMode === 'video' ? generateVideo() : generateImage();
+}
+
+function waitForVideoReady(videoUrl, timeoutMs = 240000) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    let settled = false;
+    const timer = setTimeout(() => finish(new Error('Timeout after 240 seconds')), timeoutMs);
+
+    function finish(err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      video.removeAttribute('src');
+      video.load();
+      if (err) reject(err);
+      else resolve();
+    }
+
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    video.onloadeddata = () => finish();
+    video.onloadedmetadata = () => finish();
+    video.onerror = () => finish(new Error('API failed to return a video. Check your API key and model.'));
+    video.src = videoUrl;
+    video.load();
+  });
+}
+
+async function generateVideo() {
+  const prompt = getPrompt();
+  const model  = document.getElementById('vidModel').value;
+
+  if (!prompt) { showToast('Write a prompt first!', '⚠', true); return; }
+  if (!apiKey) { showToast('Enter your API key first!', '🔑', true); return; }
+  if (!model)  { showToast('Select a video model first!', '⚠', true); return; }
+
+  const aspectRatio = document.getElementById('videoAspect').value;
+  const duration    = document.getElementById('videoDuration').value;
+  const seed        = document.getElementById('seedVal').value;
+  const audio       = document.getElementById('optVideoAudio').checked;
+  const priv        = document.getElementById('optPrivate').checked;
+
+  const params = new URLSearchParams({ model, key: apiKey, duration, aspect_ratio: aspectRatio });
+  if (seed)  params.set('seed', seed);
+  if (audio) params.set('audio', 'true');
+  if (priv)  params.set('private', 'true');
+
+  const videoUrl = `${BASE}/image/${encodeURIComponent(prompt)}?${params}`;
+  setLoading(true);
+
+  try {
+    await waitForVideoReady(videoUrl);
+    addCard(videoUrl, { type: 'video', prompt, model, aspectRatio, duration, seed: seed || 'random', audio, priv });
+    showToast('Video generated successfully!', '🎬');
   } catch(e) {
     showToast(e.message, '✕', true);
   } finally {
@@ -1529,8 +2029,168 @@ function showToast(msg, icon = '✓', err = false) {
   el._t = setTimeout(() => el.classList.remove('show'), 3600);
 }
 
+const LOAD_MSGS = {
+  image: [
+    'Generating your image…',
+    'Painting the pixels…',
+    'Consulting the AI…',
+    'Crafting your vision…',
+    'Almost there…'
+  ],
+  video: [
+    'Generating your video…',
+    'Blocking the shot…',
+    'Animating motion…',
+    'Rendering frames…',
+    'Encoding the clip…'
+  ]
+};
+
+function setLoading(on) {
+  const btn    = document.getElementById('genBtn');
+  const btnTxt = document.getElementById('genBtnTxt');
+  const wrap   = document.getElementById('loadingWrap');
+  const empty  = document.getElementById('emptyState');
+  const activeMsgs = LOAD_MSGS[mediaMode] || LOAD_MSGS.image;
+
+  btn.disabled = on;
+  btnTxt.textContent = on
+    ? (mediaMode === 'video' ? '⏳ Generating Video…' : '⏳ Generating…')
+    : (mediaMode === 'video' ? '🎬 Generate Video' : '⚡ Generate Image');
+
+  if (on) {
+    empty.style.display = 'none';
+    wrap.classList.add('on');
+    document.getElementById('loadingMsg').textContent = activeMsgs[0];
+    let i = 0;
+    clearInterval(loadInt);
+    loadInt = setInterval(() => {
+      document.getElementById('loadingMsg').textContent = activeMsgs[i++ % activeMsgs.length];
+    }, 2200);
+  } else {
+    wrap.classList.remove('on');
+    clearInterval(loadInt);
+    if (!history.length) empty.style.display = 'flex';
+  }
+}
+
+function addCard(src, meta) {
+  const type = meta.type || 'image';
+  const entryId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  document.getElementById('emptyState').style.display = 'none';
+  history.unshift({ src, meta: { ...meta, type } });
+  updateCount();
+  document.getElementById('clearBtn').style.display = 'inline-flex';
+
+  const card = document.createElement('div');
+  card.className = 'media-card';
+  card.id = entryId;
+
+  const frame = document.createElement('div');
+  frame.className = 'media-frame';
+
+  if (type === 'video') {
+    const video = document.createElement('video');
+    video.src = src;
+    video.controls = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    frame.appendChild(video);
+  } else {
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = meta.prompt;
+    img.loading = 'lazy';
+    frame.appendChild(img);
+  }
+
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'img-meta';
+
+  const safe = src.replace(/'/g, "\\'");
+  const promptName = encodeURIComponent((meta.prompt || 'media').slice(0, 20));
+  const ext = type === 'video' ? 'mp4' : 'jpg';
+  const tags = document.createElement('div');
+  tags.className = 'meta-tags';
+  tags.innerHTML = type === 'video'
+    ? `
+      <span class="mtag accent">${meta.model}</span>
+      <span class="mtag orange">video</span>
+      <span class="mtag">${meta.aspectRatio || '16:9'} · ${meta.duration || 5}s</span>
+      <span class="mtag">seed: ${meta.seed}</span>
+      ${meta.audio ? '<span class="mtag orange">audio</span>' : ''}
+      ${meta.priv ? '<span class="mtag">🔒 private</span>' : ''}
+    `
+    : `
+      <span class="mtag accent">${meta.model}</span>
+      <span class="mtag">${meta.width}×${meta.height}</span>
+      <span class="mtag">seed: ${meta.seed}</span>
+      ${meta.nologo ? '<span class="mtag orange">no logo</span>' : ''}
+      ${meta.enhance ? '<span class="mtag orange">enhanced</span>' : ''}
+      ${meta.priv ? '<span class="mtag">🔒 private</span>' : ''}
+    `;
+
+  const acts = document.createElement('div');
+  acts.className = 'img-actions';
+  acts.innerHTML = `
+    <button class="btn btn-sm" onclick="dlMedia('${safe}','${promptName}','${ext}')">⬇ Download</button>
+    <button class="btn btn-sm" onclick="cpyUrl('${safe}')">🔗 Copy URL</button>
+  `;
+
+  metaDiv.appendChild(tags);
+  metaDiv.appendChild(acts);
+  card.appendChild(frame);
+  card.appendChild(metaDiv);
+  document.getElementById('outBody').insertBefore(card, document.getElementById('outBody').firstChild);
+  addThumb(src, type, entryId);
+}
+
+function addThumb(src, type = 'image', targetId = '') {
+  const strip = document.getElementById('historyStrip');
+  strip.style.display = 'flex';
+  const t = document.createElement('div');
+  t.className = 'h-thumb';
+  t.innerHTML = type === 'video'
+    ? `<video src="${src}" muted playsinline preload="metadata"></video>`
+    : `<img src="${src}" />`;
+  t.onclick = () => {
+    const target = targetId ? document.getElementById(targetId) : document.querySelector('.media-card, .img-card');
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  strip.appendChild(t);
+}
+
+function clearAll() {
+  history = [];
+  document.querySelectorAll('.img-card, .media-card').forEach(c => c.remove());
+  document.getElementById('historyStrip').querySelectorAll('.h-thumb').forEach(t => t.remove());
+  document.getElementById('historyStrip').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('clearBtn').style.display = 'none';
+  updateCount();
+  showToast('All media cleared.', '🗑');
+}
+
+function dlMedia(url, name, ext = 'jpg') {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pollinova-${name}-${Date.now()}.${ext}`;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Download started!', '⬇');
+}
+
+function dlImage(url, name) {
+  dlMedia(url, name, 'jpg');
+}
+
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateImage();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateMedia();
 });
 </script>
 </body>
