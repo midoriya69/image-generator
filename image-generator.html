@@ -707,6 +707,82 @@ Make the prompt vivid and specific without turning it into a bloated paragraph.`
 };
 
 const MODEL_PROFILES = {
+  'kontext': {
+    family: 'instruction',
+    frameworkName: 'Pollinations Kontext Framework',
+    framework: 'Edit intent + Preserved elements + Subject/Scene + Composition + Lighting + Finish',
+    outputStyle: 'clear context-aware image brief',
+    wordRange: '55-120 words',
+    style: 'in-context generation and editing',
+    guidance: `Write a controlled prompt that works for both generation and image editing.
+If the user implies an edit, preserve unstated elements and describe only the intended change. If it is a fresh generation, use exact composition and scene direction.`,
+    rules: [
+      'Preserve all important constraints and unchanged elements when the request implies editing',
+      'Use explicit composition and subject placement',
+      'Avoid rewriting the whole scene if only one change is requested'
+    ]
+  },
+  'nanobanana': {
+    family: 'instruction',
+    frameworkName: 'Pollinations NanoBanana Framework',
+    framework: 'Scene intent + Main subject + Key traits + Composition + Lighting + Finish',
+    outputStyle: 'concise edit-friendly prompt',
+    wordRange: '45-105 words',
+    style: 'fast multimodal generation and edits',
+    guidance: `Use direct task-oriented language with only the strongest visible details.
+Keep the prompt compact, preserve explicit user constraints, and avoid decorative filler.`,
+    rules: [
+      'Lead with the scene intent and primary subject',
+      'Keep each phrase visually meaningful',
+      'Use a concise composition statement'
+    ]
+  },
+  'nanobanana-2': {
+    family: 'instruction',
+    frameworkName: 'Pollinations NanoBanana 2 Framework',
+    framework: 'Scene intent + Subject + Composition + Lighting/Atmosphere + Style + Finish',
+    outputStyle: 'coherent multimodal prompt',
+    wordRange: '55-120 words',
+    style: 'higher-fidelity multimodal generation and edits',
+    guidance: `Allow slightly richer scene detail than NanoBanana while keeping the prompt coherent and directive.
+Use balanced natural language, spatial relationships, and only the detail that meaningfully affects the image.`,
+    rules: [
+      'Prefer coherent scene direction over keyword stacks',
+      'Use layered detail only when it changes the composition',
+      'Preserve important user constraints exactly'
+    ]
+  },
+  'nanobanana-pro': {
+    family: 'instruction',
+    frameworkName: 'Pollinations NanoBanana Pro Framework',
+    framework: 'Intent + Subject + Composition + Environment + Lighting + Style + Fine detail',
+    outputStyle: 'high-detail multimodal prompt',
+    wordRange: '70-150 words',
+    maxTokens: 420,
+    style: '4K multimodal generation with stronger reasoning',
+    guidance: `This model can follow a more deliberate art direction.
+Use layered composition, clear lighting logic, surface detail, and premium finish while keeping the scene internally consistent.`,
+    rules: [
+      'Add fine detail only after the subject and composition are clear',
+      'Use precise material, lighting, and finish language',
+      'Keep the prompt readable as one polished brief'
+    ]
+  },
+  'seedream5': {
+    family: 'design',
+    frameworkName: 'Pollinations Seedream Framework',
+    framework: 'Concept + Composition + Palette + Material/Surface + Lighting + Finish',
+    outputStyle: 'premium concept prompt',
+    wordRange: '55-120 words',
+    style: 'polished commercial concept art',
+    guidance: `Aim for strong art direction, clean visual hierarchy, controlled palette, and premium material finish.
+Make the prompt feel intentional and design-led instead of generic.`,
+    rules: [
+      'Specify palette and surface qualities clearly',
+      'Use composition language that supports a premium result',
+      'Keep the concept visually focused'
+    ]
+  },
   'flux': {
     family: 'flux',
     style: 'photorealistic, cinematic',
@@ -787,10 +863,86 @@ const MODEL_PROFILES = {
     wordRange: '80-150 words',
     maxTokens: 420
   },
-  'kontext': {
+  'zimage': {
+    family: 'flux',
+    frameworkName: 'Pollinations Z-Image Framework',
+    outputStyle: 'compact upscale-aware prompt',
+    wordRange: '25-65 words',
+    temperature: 0.68,
+    style: 'fast Flux-style generation with crisp upscale finish',
+    guidance: `Keep the prompt concise and high-signal.
+Use one focal subject, a clear environment, and a small number of sharp quality cues rather than a long paragraph.`,
+    rules: [
+      'Be concise and decisive',
+      'Use only the highest-impact visual details',
+      'Favor crisp subject readability'
+    ]
+  },
+  'klein': {
+    family: 'flux',
+    frameworkName: 'Pollinations Klein Framework',
+    style: 'fast FLUX.2 generation and editing',
+    guidance: `Use FLUX ordering with exact subject and action wording.
+If the request implies editing, preserve all unstated elements and describe only the intended modification.`,
+    rules: [
+      'Preserve unchanged content when the prompt implies an edit',
+      'Keep the prompt compact and concrete'
+    ]
+  },
+  'klein-large': {
+    family: 'flux',
+    frameworkName: 'Pollinations Klein Large Framework',
+    wordRange: '45-100 words',
+    maxTokens: 320,
+    style: 'higher-quality FLUX.2 generation and editing',
+    guidance: `Use the FLUX structure with slightly richer scene detail, better surface description, and stronger lighting control.
+If editing is implied, retain scene continuity and only specify intended changes.`,
+    rules: [
+      'Add detail after the core scene is clear',
+      'Preserve unchanged elements in edit-like requests'
+    ]
+  },
+  'imagen-4': {
     family: 'instruction',
-    style: 'precise controlled composition',
-    guidance: `Use exact composition and preserve any explicit user constraints. If the user asks for edits, keep unchanged elements stable.`
+    frameworkName: 'Pollinations Imagen Framework',
+    framework: 'Scene intent + Subject details + Environment + Lighting + Style + Finish',
+    outputStyle: 'polished natural-language prompt',
+    wordRange: '55-125 words',
+    style: 'clean natural-language image generation',
+    guidance: `Prefer coherent, readable scene descriptions over keyword piles.
+Use accurate subject relationships, clean environment description, and a controlled finish.`,
+    rules: [
+      'Write in clear natural language',
+      'Use only details that improve scene fidelity',
+      'Keep the scene composition internally coherent'
+    ]
+  },
+  'flux-2-dev': {
+    family: 'flux',
+    frameworkName: 'Pollinations FLUX.2 Framework',
+    style: 'next-generation FLUX image generation and editing',
+    guidance: `Use a strong subject-first FLUX prompt with clear action, style, and context.
+If the request suggests editing, preserve the existing scene and specify the change precisely.`,
+    rules: [
+      'Lead with the subject and action',
+      'Preserve unchanged elements in edit-like prompts',
+      'Use highly specific style and context language'
+    ]
+  },
+  'grok-imagine': {
+    family: 'instruction',
+    frameworkName: 'Pollinations Grok Imagine Framework',
+    framework: 'Core idea + Composition + Subject detail + Lighting + Style + Finish',
+    outputStyle: 'expressive but controlled prompt',
+    wordRange: '50-120 words',
+    style: 'creative image generation',
+    guidance: `Keep the concept bold and visually confident, but still precise enough for reliable composition.
+Use decisive style direction and clear focal hierarchy.`,
+    rules: [
+      'State the main idea immediately',
+      'Use one cohesive style direction',
+      'Avoid vague filler language'
+    ]
   },
   'imagen': {
     family: 'instruction',
@@ -807,6 +959,22 @@ const MODEL_PROFILES = {
     style: 'design system, illustration, brand polish',
     guidance: `Keep the prompt visually intentional, clean, and compatible with design-led outputs.`
   }
+};
+
+const MODEL_ALIASES = {
+  'nanobanana2': 'nanobanana-2',
+  'gpt-image': 'gptimage',
+  'gpt-image-1-mini': 'gptimage',
+  'gpt-image-1.5': 'gptimage-large',
+  'gpt-image-large': 'gptimage-large',
+  'z-image': 'zimage',
+  'z-image-turbo': 'zimage',
+  'flux-klein': 'klein',
+  'flux-klein-9b': 'klein-large',
+  'klein-9b': 'klein-large',
+  'imagen': 'imagen-4',
+  'flux-2': 'flux-2-dev',
+  'flux2-dev': 'flux-2-dev'
 };
 
 // Fallback profile for unknown models
@@ -826,6 +994,24 @@ function joinBlocks(...blocks) {
 
 function normalizeModelId(modelId) {
   return (modelId || '').trim().toLowerCase();
+}
+
+function canonicalizeModelId(modelId) {
+  const normalizedId = normalizeModelId(modelId);
+  return MODEL_ALIASES[normalizedId] || normalizedId;
+}
+
+function getModelEntryId(model) {
+  if (typeof model === 'string') return model;
+  if (!model || typeof model !== 'object') return '';
+  return model.id || model.name || '';
+}
+
+function isImageModelEntry(model) {
+  if (typeof model === 'string') return true;
+  if (!model || typeof model !== 'object') return false;
+  const outputs = Array.isArray(model.output_modalities) ? model.output_modalities : [];
+  return !outputs.length || outputs.includes('image');
 }
 
 function mergeModelProfile(profile, normalizedId) {
@@ -848,7 +1034,7 @@ function mergeModelProfile(profile, normalizedId) {
 }
 
 function resolveModelProfile(imageModelId) {
-  const normalizedId = normalizeModelId(imageModelId);
+  const normalizedId = canonicalizeModelId(imageModelId);
   if (!normalizedId) return mergeModelProfile(DEFAULT_PROFILE, normalizedId);
 
   if (MODEL_PROFILES[normalizedId]) {
@@ -865,10 +1051,13 @@ function resolveModelProfile(imageModelId) {
 
   const inferred =
     normalizedId.includes('flux') ? { family: 'flux' } :
+    normalizedId.includes('klein') ? { family: 'flux' } :
+    normalizedId.includes('zimage') ? { family: 'flux' } :
+    normalizedId.includes('flux-2') ? { family: 'flux' } :
     normalizedId.includes('turbo') ? { family: 'turbo' } :
     normalizedId.includes('stable') || normalizedId.includes('diffusion') || normalizedId.includes('sdxl') || normalizedId.includes('sd3') || normalizedId === 'sd'
       ? { family: 'stable-diffusion' } :
-    normalizedId.includes('gptimage') || normalizedId.includes('openai') || normalizedId.includes('dall') || normalizedId.includes('kontext') || normalizedId.includes('imagen')
+    normalizedId.includes('gptimage') || normalizedId.includes('openai') || normalizedId.includes('dall') || normalizedId.includes('kontext') || normalizedId.includes('imagen') || normalizedId.includes('nanobanana') || normalizedId.includes('grok')
       ? { family: 'instruction' } :
     normalizedId.includes('seedream') || normalizedId.includes('recraft') || normalizedId.includes('design') || normalizedId.includes('product')
       ? { family: 'design' } :
@@ -972,24 +1161,27 @@ async function loadImageModels() {
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) throw new Error('Empty');
 
-    imgModelsMeta = data;
+    const imageModels = data.filter(isImageModelEntry);
+    if (!imageModels.length) throw new Error('No image models');
+
+    imgModelsMeta = imageModels;
     sel.innerHTML = '';
-    data.forEach(m => {
-      const id   = typeof m === 'string' ? m : (m.id || m.name || '');
+    imageModels.forEach(m => {
+      const id   = getModelEntryId(m);
       const desc = (typeof m === 'object' && m.description) ? ` — ${m.description.slice(0, 40)}` : '';
       sel.add(new Option(`${id}${desc}`, id));
     });
 
     status.className = 'select-status ok';
-    count.innerHTML  = `<span>${data.length} models available</span> <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
+    count.innerHTML  = `<span>${imageModels.length} image models available</span> <a href="https://model-monitor.pollinations.ai" target="_blank">↗ model-monitor</a>`;
     onImgModelChange();
   } catch(e) {
-    const fb = ['flux','flux-realism','flux-anime','flux-3d','any-dark','turbo','gptimage-large'];
+    const fb = ['kontext','nanobanana','nanobanana-2','nanobanana-pro','seedream5','gptimage','gptimage-large','flux','zimage','klein','klein-large','imagen-4','flux-2-dev','grok-imagine'];
     imgModelsMeta = [];
     sel.innerHTML = '';
     fb.forEach(m => sel.add(new Option(m, m)));
     status.className = 'select-status err';
-    count.innerHTML  = '<span>Using fallback list</span>';
+    count.innerHTML  = '<span>Using fallback image model list</span>';
     onImgModelChange();
   }
 }
@@ -1004,7 +1196,7 @@ function onImgModelChange() {
   updateEnhanceHint(id);
 
   if (!id) { box.style.display = 'none'; return; }
-  const m = imgModelsMeta.find(x => typeof x === 'object' && (x.id || x.name) === id);
+  const m = imgModelsMeta.find(x => typeof x === 'object' && getModelEntryId(x) === id);
 
   const parts = [
     `<b>Framework:</b> ${profile.framework}`,
@@ -1015,6 +1207,7 @@ function onImgModelChange() {
   if (m && typeof m === 'object') {
     if (m.description) parts.push(`<b>Info:</b> ${m.description}`);
     if (m.type)        parts.push(`<b>Type:</b> ${m.type}`);
+    if (Array.isArray(m.input_modalities) && m.input_modalities.length) parts.push(`<b>Inputs:</b> ${m.input_modalities.join(', ')}`);
     if (m.pollen !== undefined) parts.push(`<b>Pollen/req:</b> ${m.pollen}`);
   }
 
