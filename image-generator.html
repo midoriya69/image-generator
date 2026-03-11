@@ -289,7 +289,6 @@
     }
 
     .divider { height: 1px; background: var(--border); }
-    .planner-panel { display: flex; flex-direction: column; gap: 10px; }
 
     /* ── OUTPUT ── */
     .output-panel {
@@ -414,11 +413,42 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+    @media (max-width: 920px) {
+      main { grid-template-columns: 1fr; }
+      .output-panel { min-height: 0; }
+    }
+    @media (max-width: 720px) {
+      header { padding: 12px 14px; }
+      .key-banner { margin: 14px 14px 0; padding: 14px; flex-direction: column; align-items: stretch; }
+      .key-input-row, .key-saved-row { width: 100%; }
+      .key-input-row { flex-direction: column; }
+      main { padding: 16px 14px 72px; gap: 16px; }
+      .panel-head, .out-head { padding: 14px; }
+      .panel-body, .out-body, .log-panel, .history-strip { padding: 14px; }
+      .grid2 { grid-template-columns: 1fr; }
+      .seed-row, .vision-row, .enhance-bar, .img-actions { flex-wrap: wrap; }
+      .seed-row > *, .vision-row > *, .enhance-bar > * { width: 100%; }
+      .seed-row .btn-sm, .vision-row .btn-sm, .enhance-bar .btn { width: 100%; }
+      .toggles { display: grid; grid-template-columns: 1fr; }
+      .toggle-item { width: 100%; justify-content: center; padding: 11px 12px; }
+      .out-head { flex-direction: column; align-items: stretch; gap: 12px; }
+      .out-head-left { width: 100%; gap: 10px; }
+      .out-tabs { width: 100%; }
+      .out-tab { flex: 1; }
+      .img-meta { flex-direction: column; align-items: stretch; }
+      .img-actions .btn-sm { flex: 1; justify-content: center; }
+      .toast {
+        left: 14px; right: 14px; bottom: 14px; max-width: none;
+      }
+    }
     @media (max-width: 500px) {
       header { padding: 11px 14px; }
       main { padding: 16px 12px 60px; }
       .key-banner { margin: 12px; }
+      .logo { font-size: 1.05rem; }
+      .mode-switch { grid-template-columns: 1fr; }
+      .empty-state, .loading-wrap { min-height: 280px; }
+      .media-card img, .media-card video { max-height: 55vh; }
     }
   </style>
 </head>
@@ -518,22 +548,6 @@
             <div class="select-status loading" id="textModelStatus"></div>
           </div>
           <div class="model-count" id="textModelCount"></div>
-        </div>
-
-        <div id="textImagePlannerGroup">
-          <label>Image Text Model</label>
-          <div class="planner-panel">
-            <label class="toggle-item">
-              <input type="checkbox" id="optUseTextImagePlanner" onchange="updateTextImagePlannerUI()" />
-              <span>TXT</span> Use text model for image
-            </label>
-            <div class="select-wrap" id="textImagePlannerWrap" hidden>
-              <select id="textImagePlannerModel">
-                <option value="">Loading image text models...</option>
-              </select>
-              <div class="select-status" id="textImagePlannerStatus"></div>
-            </div>
-          </div>
         </div>
 
         <div class="divider"></div>
@@ -707,7 +721,6 @@ let videoModelsMeta = [];
 let history       = [];
 let mediaMode     = 'image';
 let visionInput   = { file: null, previewUrl: '', uploadedUrl: '', uploadPromise: null };
-let plannerTextModelsMeta = [];
 let notificationLog = [];
 let outputTab = 'output';
 
@@ -2829,25 +2842,6 @@ function getTextModelEntryId(model) {
   return typeof model === 'string' ? model : (model?.id || model?.name || '');
 }
 
-function supportsTextImagePlanning(model) {
-  const id = canonicalizeModelId(getTextModelEntryId(model));
-  if (!id) return false;
-  if (typeof model === 'object') {
-    if (model.tools === true) return true;
-    if (Array.isArray(model.output_modalities) && model.output_modalities.includes('image')) return true;
-  }
-  return ['openai', 'gpt', 'claude', 'gemini', 'llama', 'mistral', 'qwen', 'deepseek', 'pixtral'].some(key => id.includes(key));
-}
-
-function supportsTextVisionInput(modelId) {
-  const meta = textModelsMeta.find(model => getTextModelEntryId(model) === modelId);
-  if (meta && Array.isArray(meta.input_modalities)) {
-    return meta.input_modalities.includes('image');
-  }
-  const normalized = canonicalizeModelId(modelId);
-  return ['openai', 'claude', 'gemini', 'llama', 'mistral', 'qwen', 'pixtral'].some(key => normalized.includes(key));
-}
-
 function populateTextSelect(selectEl, models, currentValue = '') {
   if (!selectEl) return;
   selectEl.innerHTML = '';
@@ -2880,33 +2874,14 @@ function populateModelSelect(selectEl, models) {
   }
 }
 
-function updateTextImagePlannerUI() {
-  const group = document.getElementById('textImagePlannerGroup');
-  const wrap = document.getElementById('textImagePlannerWrap');
-  const enabled = document.getElementById('optUseTextImagePlanner')?.checked;
-  const status = document.getElementById('textImagePlannerStatus');
-  const plannerSelect = document.getElementById('textImagePlannerModel');
-
-  if (group) group.hidden = mediaMode !== 'image';
-  if (wrap) wrap.hidden = mediaMode !== 'image' || !enabled;
-  if (status) {
-    status.className = plannerSelect?.options?.length ? 'select-status ok' : 'select-status err';
-  }
-}
-
 async function loadTextModels() {
   const textSelect = document.getElementById('textModel');
   const status = document.getElementById('textModelStatus');
   const count = document.getElementById('textModelCount');
-  const plannerSelect = document.getElementById('textImagePlannerModel');
-  const plannerStatus = document.getElementById('textImagePlannerStatus');
   const currentTextModel = textSelect?.value || '';
-  const currentPlannerModel = plannerSelect?.value || '';
 
   if (status) status.className = 'select-status loading';
-  if (plannerStatus) plannerStatus.className = 'select-status loading';
   if (textSelect) textSelect.innerHTML = '<option value="">Loading...</option>';
-  if (plannerSelect) plannerSelect.innerHTML = '<option value="">Loading...</option>';
 
   const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
 
@@ -2917,30 +2892,19 @@ async function loadTextModels() {
     if (!Array.isArray(data) || !data.length) throw new Error('Empty text model list');
 
     textModelsMeta = data;
-    plannerTextModelsMeta = data.filter(supportsTextImagePlanning);
-    const plannerPool = plannerTextModelsMeta.length ? plannerTextModelsMeta : data;
-
     populateTextSelect(textSelect, data, currentTextModel);
-    populateTextSelect(plannerSelect, plannerPool, currentPlannerModel || textSelect?.value || '');
 
     if (status) status.className = 'select-status ok';
-    if (plannerStatus) plannerStatus.className = plannerPool.length ? 'select-status ok' : 'select-status err';
     if (count) count.innerHTML = `<span>${data.length} models available</span>`;
   } catch (e) {
     const fallback = ['openai', 'openai-large', 'mistral', 'llama', 'gemini', 'deepseek', 'claude-hybridspace', 'qwen-coder'];
     textModelsMeta = fallback.map(id => ({ id }));
-    plannerTextModelsMeta = textModelsMeta.filter(supportsTextImagePlanning);
-    const plannerPool = plannerTextModelsMeta.length ? plannerTextModelsMeta : textModelsMeta;
-
     populateTextSelect(textSelect, textModelsMeta, currentTextModel);
-    populateTextSelect(plannerSelect, plannerPool, currentPlannerModel || textSelect?.value || '');
 
     if (status) status.className = 'select-status err';
-    if (plannerStatus) plannerStatus.className = 'select-status err';
     if (count) count.innerHTML = '<span>Using fallback list</span>';
   }
 
-  updateTextImagePlannerUI();
   normalizeUIText();
 }
 
@@ -3019,7 +2983,6 @@ function updateModeUI() {
   document.getElementById('genBtnTxt').textContent = isVideo ? 'Generate Video' : 'Generate Image';
   updateModelAwareBadge(getSelectedGenerationModel());
   updateEnhanceHint(getSelectedGenerationModel(), mediaMode);
-  updateTextImagePlannerUI();
   syncOutputActions();
 }
 
@@ -3104,71 +3067,6 @@ function clearAll() {
   updateCount();
   syncOutputActions();
   showToast('Output cleared.', 'CLR');
-}
-
-function buildTextImagePlannerSystemPrompt(plannerModelId, imageModelId, hasVision = false) {
-  const profile = resolveModelProfile(imageModelId);
-  const rules = [
-    'Return exactly one final Pollinations image prompt.',
-    `Optimize for image model ${imageModelId} using framework: ${profile.framework}.`,
-    'Keep the subject, action, and main intent from the user prompt.',
-    'Add concrete visual detail, lighting, style, and composition only when it improves render quality.',
-    hasVision
-      ? 'A reference image may be attached. Preserve the reference image identity, composition, or style unless the user asks for a change.'
-      : 'Do not invent extra story details that will not affect the image.',
-    'Do not return explanations, markdown, labels, or multiple prompt options.'
-  ].join('\n');
-
-  return `You are an image prompt planner for Pollinations.
-
-Planner model: ${plannerModelId}
-Target image model: ${imageModelId}
-Prompt framework: ${profile.framework}
-Ideal prompt length: ${profile.wordRange}
-Style goal: ${profile.style}
-
-Rules:
-${rules}`;
-}
-
-async function planImagePromptWithTextModel(rawPrompt, imageModelId, plannerModelId, referenceImageUrl = '') {
-  const systemPrompt = buildTextImagePlannerSystemPrompt(plannerModelId, imageModelId, !!referenceImageUrl);
-  const plannerSupportsVision = referenceImageUrl && supportsTextVisionInput(plannerModelId);
-  const userContent = plannerSupportsVision
-    ? [
-        {
-          type: 'text',
-          text: `User idea:\n${rawPrompt}\n\nReturn only the final Pollinations image prompt.`
-        },
-        {
-          type: 'image_url',
-          image_url: { url: referenceImageUrl, detail: 'auto' }
-        }
-      ]
-    : `User idea:\n${rawPrompt}\n\nReturn only the final Pollinations image prompt.`;
-
-  const res = await fetch(`${BASE}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: plannerModelId,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent }
-      ],
-      temperature: 0.7,
-      max_tokens: 260
-    })
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
-  const planned = sanitizeEnhancedPrompt(data?.choices?.[0]?.message?.content);
-  if (!planned) throw new Error('Empty planner response');
-  return planned;
 }
 
 async function enhancePrompt() {
@@ -3269,15 +3167,12 @@ function setLoading(on) {
 }
 
 async function generateImage() {
-  const rawPrompt = getPrompt();
+  const prompt = getPrompt();
   const model = document.getElementById('imgModel').value;
-  const plannerEnabled = document.getElementById('optUseTextImagePlanner')?.checked;
-  const plannerModel = document.getElementById('textImagePlannerModel')?.value || '';
 
-  if (!rawPrompt) { showToast('Write a prompt first.', 'WARN', true); return; }
+  if (!prompt) { showToast('Write a prompt first.', 'WARN', true); return; }
   if (!apiKey) { showToast('Enter your API key first.', 'KEY', true); return; }
   if (!model) { showToast('Select an image model first.', 'WARN', true); return; }
-  if (plannerEnabled && !plannerModel) { showToast('Select an image text model first.', 'WARN', true); return; }
 
   const width = document.getElementById('imgW').value;
   const height = document.getElementById('imgH').value;
@@ -3285,21 +3180,12 @@ async function generateImage() {
   const nologo = document.getElementById('optNologo').checked;
   const enhance = document.getElementById('optEnhance').checked;
   const priv = document.getElementById('optPrivate').checked;
-  const needsReferenceUpload = modelSupportsVisionInput('image', model) || (plannerEnabled && supportsTextVisionInput(plannerModel));
 
   setOutputTab('output');
   setLoading(true);
 
   try {
-    const referenceImageUrl = needsReferenceUpload ? await ensureVisionUpload() : '';
-    let prompt = rawPrompt;
-
-    if (plannerEnabled) {
-      prompt = await planImagePromptWithTextModel(rawPrompt, model, plannerModel, referenceImageUrl);
-      document.getElementById('enhancedPrompt').value = prompt;
-      document.getElementById('enhancePanel').style.display = 'block';
-      showToast(`Image prompt prepared by ${plannerModel}.`, 'AI');
-    }
+    const referenceImageUrl = modelSupportsVisionInput('image', model) ? await ensureVisionUpload() : '';
 
     const params = new URLSearchParams({ model, width, height, key: apiKey });
     if (seed) params.set('seed', seed);
@@ -3328,7 +3214,6 @@ async function generateImage() {
       nologo,
       enhance,
       priv,
-      plannerModel: plannerEnabled ? plannerModel : '',
       reference: !!referenceImageUrl
     });
     showToast('Image generated successfully.', 'IMG');
@@ -3440,7 +3325,6 @@ function addCard(src, meta) {
       <span class="mtag accent">${meta.model}</span>
       <span class="mtag">${meta.width}x${meta.height}</span>
       <span class="mtag">seed: ${meta.seed}</span>
-      ${meta.plannerModel ? `<span class="mtag orange">text: ${meta.plannerModel}</span>` : ''}
       ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
       ${meta.nologo ? '<span class="mtag orange">no logo</span>' : ''}
       ${meta.enhance ? '<span class="mtag orange">enhanced</span>' : ''}
@@ -3465,7 +3349,6 @@ function addCard(src, meta) {
 
 document.addEventListener('DOMContentLoaded', () => {
   normalizeUIText();
-  updateTextImagePlannerUI();
   setOutputTab('output');
   updateLogCount();
 });
