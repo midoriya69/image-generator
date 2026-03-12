@@ -289,6 +289,43 @@
     }
 
     .divider { height: 1px; background: var(--border); }
+    .accordion {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      overflow: hidden;
+    }
+    .accordion-toggle {
+      width: 100%;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--input-bg);
+      color: var(--text);
+      border-radius: 0;
+      font-size: 0.82rem;
+      letter-spacing: 0.4px;
+    }
+    .accordion-toggle:hover { background: rgba(124,92,252,0.08); }
+    .accordion-icon {
+      color: var(--accent2);
+      font-size: 0.95rem;
+      min-width: 1.2rem;
+      text-align: center;
+    }
+    .accordion-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .adv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+    }
+    .adv-grid textarea,
+    .accordion-panel textarea { min-height: 74px; }
 
     /* ── OUTPUT ── */
     .output-panel {
@@ -667,6 +704,75 @@
             <label class="toggle-item" id="optEnhanceWrap"><input type="checkbox" id="optEnhance" /><span>✨</span> Auto Enhance</label>
             <label class="toggle-item" id="optVideoAudioWrap" hidden><input type="checkbox" id="optVideoAudio" /><span>🔊</span> With Audio</label>
             <label class="toggle-item"><input type="checkbox" id="optPrivate" /><span>🔒</span> Private</label>
+          </div>
+        </div>
+
+        <div class="accordion">
+          <button class="btn accordion-toggle" type="button" id="advancedSettingsBtn" onclick="toggleAdvancedSettings()">
+            <span>Advance Setting</span>
+            <span class="accordion-icon" id="advancedSettingsIcon">+</span>
+          </button>
+          <div class="accordion-panel" id="advancedSettingsPanel" hidden>
+            <div class="grid2">
+              <div>
+                <label>Width Override</label>
+                <input type="number" id="advWidth" placeholder="Optional" min="1" step="1" />
+              </div>
+              <div>
+                <label>Height Override</label>
+                <input type="number" id="advHeight" placeholder="Optional" min="1" step="1" />
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div>
+                <label>Safety Filter</label>
+                <select id="advSafe">
+                  <option value="">Default</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+              <div>
+                <label>Enhance Query</label>
+                <select id="advEnhanceMode">
+                  <option value="">Default</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div>
+                <label>Quality</label>
+                <select id="advQuality">
+                  <option value="">Default</option>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="hd">hd</option>
+                </select>
+              </div>
+              <div>
+                <label>Transparent</label>
+                <select id="advTransparent">
+                  <option value="">Default</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label>Negative Prompt</label>
+              <textarea id="advNegativePrompt" rows="3" placeholder="Optional negative_prompt"></textarea>
+            </div>
+
+            <div>
+              <label>Reference URL(s)</label>
+              <input type="text" id="advReferenceUrls" placeholder="https://example.com/a.jpg | https://example.com/b.jpg" />
+            </div>
           </div>
         </div>
 
@@ -2838,6 +2944,48 @@ function restoreSessionState() {
   setOutputTab(payload.outputTab === 'logs' ? 'logs' : 'output');
 }
 
+function toggleAdvancedSettings(forceState = null) {
+  const panel = document.getElementById('advancedSettingsPanel');
+  const icon = document.getElementById('advancedSettingsIcon');
+  const btn = document.getElementById('advancedSettingsBtn');
+  if (!panel || !icon || !btn) return;
+
+  const open = typeof forceState === 'boolean' ? forceState : panel.hidden;
+  panel.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  icon.textContent = open ? '-' : '+';
+}
+
+function parseManualReferenceUrls(value = '') {
+  return String(value || '')
+    .split(/[\n|,]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function buildReferenceImageParam(uploadedUrl = '', manualValue = '') {
+  const refs = [];
+  if (uploadedUrl) refs.push(uploadedUrl);
+  parseManualReferenceUrls(manualValue).forEach(url => {
+    if (!refs.includes(url)) refs.push(url);
+  });
+  return refs.join('|');
+}
+
+function getAdvancedQuerySettings() {
+  const getValue = id => document.getElementById(id)?.value?.trim?.() ?? '';
+  return {
+    width: getValue('advWidth'),
+    height: getValue('advHeight'),
+    safe: getValue('advSafe'),
+    enhance: getValue('advEnhanceMode'),
+    quality: getValue('advQuality'),
+    transparent: getValue('advTransparent'),
+    negativePrompt: getValue('advNegativePrompt'),
+    referenceUrls: getValue('advReferenceUrls')
+  };
+}
+
 function syncOutputActions() {
   const clearBtn = document.getElementById('clearBtn');
   const clearLogsBtn = document.getElementById('clearLogsBtn');
@@ -3305,16 +3453,17 @@ function setLoading(on, options = {}) {
 async function generateImage() {
   const prompt = getPrompt();
   const model = document.getElementById('imgModel').value;
+  const adv = getAdvancedQuerySettings();
 
   if (!prompt) { showToast('Write a prompt first.', 'WARN', true); return; }
   if (!apiKey) { showToast('Enter your API key first.', 'KEY', true); return; }
   if (!model) { showToast('Select an image model first.', 'WARN', true); return; }
 
-  const width = document.getElementById('imgW').value;
-  const height = document.getElementById('imgH').value;
+  const width = adv.width || document.getElementById('imgW').value;
+  const height = adv.height || document.getElementById('imgH').value;
   const seed = document.getElementById('seedVal').value;
   const nologo = document.getElementById('optNologo').checked;
-  const enhance = document.getElementById('optEnhance').checked;
+  const enhance = adv.enhance ? adv.enhance === 'true' : document.getElementById('optEnhance').checked;
   const priv = document.getElementById('optPrivate').checked;
 
   setOutputTab('output');
@@ -3323,13 +3472,19 @@ async function generateImage() {
 
   try {
     const referenceImageUrl = modelSupportsVisionInput('image', model) ? await ensureVisionUpload() : '';
+    const imageParam = buildReferenceImageParam(referenceImageUrl, adv.referenceUrls);
 
     const params = new URLSearchParams({ model, width, height, key: apiKey });
     if (seed) params.set('seed', seed);
     if (nologo) params.set('nologo', 'true');
-    if (enhance) params.set('enhance', 'true');
+    if (adv.enhance) params.set('enhance', adv.enhance);
+    else if (enhance) params.set('enhance', 'true');
     if (priv) params.set('private', 'true');
-    if (referenceImageUrl && modelSupportsVisionInput('image', model)) params.set('image', referenceImageUrl);
+    if (adv.safe) params.set('safe', adv.safe);
+    if (adv.negativePrompt) params.set('negative_prompt', adv.negativePrompt);
+    if (adv.quality) params.set('quality', adv.quality);
+    if (adv.transparent) params.set('transparent', adv.transparent);
+    if (imageParam && (modelSupportsVisionInput('image', model) || adv.referenceUrls)) params.set('image', imageParam);
 
     const imgUrl = `${BASE}/image/${encodeURIComponent(prompt)}?${params}`;
 
@@ -3353,7 +3508,11 @@ async function generateImage() {
       enhance,
       priv,
       durationMs,
-      reference: !!referenceImageUrl
+      safe: adv.safe,
+      quality: adv.quality,
+      transparent: adv.transparent,
+      negativePrompt: !!adv.negativePrompt,
+      reference: !!imageParam
     });
     showToast(`Image generated in ${formatDuration(durationMs)}.`, 'IMG');
   } catch (e) {
@@ -3366,6 +3525,7 @@ async function generateImage() {
 async function generateVideo() {
   const prompt = getPrompt();
   const model = document.getElementById('vidModel').value;
+  const adv = getAdvancedQuerySettings();
 
   if (!prompt) { showToast('Write a prompt first.', 'WARN', true); return; }
   if (!apiKey) { showToast('Enter your API key first.', 'KEY', true); return; }
@@ -3383,11 +3543,19 @@ async function generateVideo() {
 
   try {
     const referenceImageUrl = modelSupportsVisionInput('video', model) ? await ensureVisionUpload() : '';
+    const imageParam = buildReferenceImageParam(referenceImageUrl, adv.referenceUrls);
     const params = new URLSearchParams({ model, key: apiKey, duration, aspectRatio });
+    if (adv.width) params.set('width', adv.width);
+    if (adv.height) params.set('height', adv.height);
     if (seed) params.set('seed', seed);
     if (audio) params.set('audio', 'true');
     if (priv) params.set('private', 'true');
-    if (referenceImageUrl) params.set('image', referenceImageUrl);
+    if (adv.enhance) params.set('enhance', adv.enhance);
+    if (adv.safe) params.set('safe', adv.safe);
+    if (adv.negativePrompt) params.set('negative_prompt', adv.negativePrompt);
+    if (adv.quality) params.set('quality', adv.quality);
+    if (adv.transparent) params.set('transparent', adv.transparent);
+    if (imageParam) params.set('image', imageParam);
 
     const videoUrl = `${BASE}/video/${encodeURIComponent(prompt)}?${params}`;
 
@@ -3403,7 +3571,8 @@ async function generateVideo() {
       audio,
       priv,
       durationMs,
-      reference: !!referenceImageUrl
+      safe: adv.safe,
+      reference: !!imageParam
     });
     showToast(`Video generated in ${formatDuration(durationMs)}.`, 'VID');
   } catch (e) {
@@ -3461,6 +3630,7 @@ function addCard(src, meta, options = {}) {
       <span class="mtag">${meta.aspectRatio || '16:9'} / ${meta.duration || 5}s</span>
       <span class="mtag">seed: ${meta.seed}</span>
       ${meta.durationMs ? `<span class="mtag orange">done in ${formatDuration(meta.durationMs)}</span>` : ''}
+      ${meta.safe ? `<span class="mtag orange">safe=${meta.safe}</span>` : ''}
       ${meta.audio ? '<span class="mtag orange">audio</span>' : ''}
       ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
       ${meta.priv ? '<span class="mtag">private</span>' : ''}
@@ -3470,6 +3640,10 @@ function addCard(src, meta, options = {}) {
       <span class="mtag">${meta.width}x${meta.height}</span>
       <span class="mtag">seed: ${meta.seed}</span>
       ${meta.durationMs ? `<span class="mtag orange">done in ${formatDuration(meta.durationMs)}</span>` : ''}
+      ${meta.safe ? `<span class="mtag orange">safe=${meta.safe}</span>` : ''}
+      ${meta.quality ? `<span class="mtag orange">quality=${meta.quality}</span>` : ''}
+      ${meta.transparent ? `<span class="mtag orange">transparent=${meta.transparent}</span>` : ''}
+      ${meta.negativePrompt ? '<span class="mtag orange">negative prompt</span>' : ''}
       ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
       ${meta.nologo ? '<span class="mtag orange">no logo</span>' : ''}
       ${meta.enhance ? '<span class="mtag orange">enhanced</span>' : ''}
