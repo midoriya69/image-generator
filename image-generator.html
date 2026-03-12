@@ -364,6 +364,23 @@
     .ring::before { inset: 0; border: 2px solid var(--border); }
     .ring::after { inset: 0; border: 2px solid transparent; border-top-color: var(--accent); animation: orb-spin 0.75s linear infinite; }
     .loading-msg { font-size: 0.82rem; color: var(--muted); font-style: italic; }
+    .loading-meter {
+      width: min(360px, 100%); height: 12px; padding: 2px;
+      border: 1px solid var(--border); border-radius: 999px; background: rgba(255,255,255,0.03);
+      overflow: hidden;
+    }
+    .loading-bar {
+      height: 100%; width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2), var(--orange2));
+      transition: width 0.25s linear;
+      box-shadow: 0 0 18px rgba(124,92,252,0.28);
+    }
+    .loading-stats {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      width: min(360px, 100%); font-size: 0.74rem; color: var(--muted);
+    }
+    .loading-stats strong { color: var(--accent2); font-weight: 700; }
 
     .img-card, .media-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
@@ -689,6 +706,13 @@
       <div class="loading-wrap" id="loadingWrap">
         <div class="ring"></div>
         <div class="loading-msg" id="loadingMsg">Generating your media…</div>
+        <div class="loading-meter" aria-hidden="true">
+          <div class="loading-bar" id="loadingBar"></div>
+        </div>
+        <div class="loading-stats">
+          <span>Elapsed <strong id="loadingElapsed">0.0s</strong></span>
+          <span id="loadingPhase">Starting...</span>
+        </div>
       </div>
     </div>
     <div class="log-panel" id="logPanel" hidden>
@@ -713,6 +737,7 @@
 // ════════════════════════════════════════════════
 const BASE = 'https://gen.pollinations.ai';
 const MEDIA_BASE = 'https://media.pollinations.ai';
+const SESSION_STATE_KEY = 'pollinova_session_v1';
 
 let apiKey        = localStorage.getItem('pollinova_key') || '';
 let textModelsMeta = [];
@@ -723,6 +748,9 @@ let mediaMode     = 'image';
 let visionInput   = { file: null, previewUrl: '', uploadedUrl: '', uploadPromise: null };
 let notificationLog = [];
 let outputTab = 'output';
+let hasRestoredSession = false;
+let loadStartedAt = 0;
+let loadVisualInt = null;
 
 // ════════════════════════════════════════════════
 // PER-MODEL SYSTEM PROMPTS
@@ -2720,6 +2748,96 @@ function formatNoticeTime(date = new Date()) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 }
 
+function formatDuration(ms = 0) {
+  const totalMs = Math.max(0, Number(ms) || 0);
+  const totalSeconds = totalMs / 1000;
+  if (totalSeconds < 60) return `${totalSeconds.toFixed(1)}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+function updateLoadingVisual(mode = mediaMode) {
+  const bar = document.getElementById('loadingBar');
+  const elapsedEl = document.getElementById('loadingElapsed');
+  const phaseEl = document.getElementById('loadingPhase');
+  if (!bar || !elapsedEl || !phaseEl || !loadStartedAt) return;
+
+  const elapsed = Date.now() - loadStartedAt;
+  const target = mode === 'video' ? 240000 : 90000;
+  const progress = Math.min(96, 8 + ((elapsed / target) * 88));
+
+  bar.style.width = `${progress}%`;
+  elapsedEl.textContent = formatDuration(elapsed);
+  phaseEl.textContent = mode === 'video'
+    ? `Target window ${formatDuration(target)}`
+    : `Target window ${formatDuration(target)}`;
+}
+
+function getSessionStore() {
+  try {
+    return window.sessionStorage;
+  } catch (_) {
+    return null;
+  }
+}
+
+function persistSessionState() {
+  const store = getSessionStore();
+  if (!store) return;
+
+  const payload = {
+    outputTab,
+    history: history.slice(0, 24).map(entry => ({
+      src: entry.src,
+      meta: entry.meta
+    }))
+  };
+
+  try {
+    store.setItem(SESSION_STATE_KEY, JSON.stringify(payload));
+  } catch (_) {}
+}
+
+function restoreSessionState() {
+  if (hasRestoredSession) return;
+  hasRestoredSession = true;
+
+  const store = getSessionStore();
+  if (!store) {
+    setOutputTab('output');
+    return;
+  }
+
+  let payload = null;
+  try {
+    payload = JSON.parse(store.getItem(SESSION_STATE_KEY) || 'null');
+  } catch (_) {
+    payload = null;
+  }
+
+  if (!payload || !Array.isArray(payload.history) || !payload.history.length) {
+    setOutputTab(payload?.outputTab === 'logs' ? 'logs' : 'output');
+    return;
+  }
+
+  history = [];
+  document.querySelectorAll('.img-card, .media-card').forEach(card => card.remove());
+  document.getElementById('historyStrip')?.querySelectorAll('.h-thumb').forEach(thumb => thumb.remove());
+  document.getElementById('emptyState').style.display = 'flex';
+
+  payload.history
+    .slice()
+    .reverse()
+    .forEach(entry => {
+      if (!entry?.src || !entry?.meta) return;
+      addCard(entry.src, entry.meta, { persist: false });
+    });
+
+  updateCount();
+  setOutputTab(payload.outputTab === 'logs' ? 'logs' : 'output');
+}
+
 function syncOutputActions() {
   const clearBtn = document.getElementById('clearBtn');
   const clearLogsBtn = document.getElementById('clearLogsBtn');
@@ -2790,6 +2908,7 @@ function setOutputTab(tab = 'output') {
   outputBtn?.classList.toggle('active', outputTab === 'output');
   logsBtn?.classList.toggle('active', outputTab === 'logs');
   syncOutputActions();
+  persistSessionState();
 }
 
 function normalizeUIText() {
@@ -3066,6 +3185,7 @@ function clearAll() {
   document.getElementById('emptyState').style.display = 'flex';
   updateCount();
   syncOutputActions();
+  persistSessionState();
   showToast('Output cleared.', 'CLR');
 }
 
@@ -3136,32 +3256,48 @@ async function enhancePrompt() {
   }
 }
 
-function setLoading(on) {
+function setLoading(on, options = {}) {
   const btn = document.getElementById('genBtn');
   const btnTxt = document.getElementById('genBtnTxt');
   const wrap = document.getElementById('loadingWrap');
   const empty = document.getElementById('emptyState');
-  const messages = mediaMode === 'video'
+  const mode = options.mode || mediaMode;
+  const messages = mode === 'video'
     ? ['Generating video...', 'Blocking the shot...', 'Rendering frames...', 'Encoding clip...']
     : ['Generating image...', 'Refining prompt...', 'Rendering scene...', 'Finalizing output...'];
+  const bar = document.getElementById('loadingBar');
+  const elapsedEl = document.getElementById('loadingElapsed');
+  const phaseEl = document.getElementById('loadingPhase');
 
   btn.disabled = on;
   btnTxt.textContent = on
-    ? (mediaMode === 'video' ? 'Generating Video...' : 'Generating Image...')
-    : (mediaMode === 'video' ? 'Generate Video' : 'Generate Image');
+    ? (mode === 'video' ? 'Generating Video...' : 'Generating Image...')
+    : (mode === 'video' ? 'Generate Video' : 'Generate Image');
 
   if (on) {
+    loadStartedAt = Date.now();
     empty.style.display = 'none';
     wrap.classList.add('on');
     document.getElementById('loadingMsg').textContent = messages[0];
+    if (bar) bar.style.width = '8%';
+    if (elapsedEl) elapsedEl.textContent = '0.0s';
+    if (phaseEl) phaseEl.textContent = 'Starting...';
     let index = 0;
     clearInterval(loadInt);
+    clearInterval(loadVisualInt);
     loadInt = setInterval(() => {
       document.getElementById('loadingMsg').textContent = messages[index++ % messages.length];
     }, 2200);
+    updateLoadingVisual(mode);
+    loadVisualInt = setInterval(() => updateLoadingVisual(mode), 200);
   } else {
     wrap.classList.remove('on');
     clearInterval(loadInt);
+    clearInterval(loadVisualInt);
+    loadStartedAt = 0;
+    if (bar) bar.style.width = '0%';
+    if (elapsedEl) elapsedEl.textContent = '0.0s';
+    if (phaseEl) phaseEl.textContent = 'Idle';
     if (!history.length) empty.style.display = 'flex';
   }
 }
@@ -3182,7 +3318,8 @@ async function generateImage() {
   const priv = document.getElementById('optPrivate').checked;
 
   setOutputTab('output');
-  setLoading(true);
+  const startedAt = Date.now();
+  setLoading(true, { mode: 'image' });
 
   try {
     const referenceImageUrl = modelSupportsVisionInput('image', model) ? await ensureVisionUpload() : '';
@@ -3204,6 +3341,7 @@ async function generateImage() {
       setTimeout(() => reject(new Error('Timeout after 90 seconds')), 90000);
     });
 
+    const durationMs = Date.now() - startedAt;
     addCard(imgUrl, {
       type: 'image',
       prompt,
@@ -3214,13 +3352,14 @@ async function generateImage() {
       nologo,
       enhance,
       priv,
+      durationMs,
       reference: !!referenceImageUrl
     });
-    showToast('Image generated successfully.', 'IMG');
+    showToast(`Image generated in ${formatDuration(durationMs)}.`, 'IMG');
   } catch (e) {
     showToast(e.message, 'ERR', true);
   } finally {
-    setLoading(false);
+    setLoading(false, { mode: 'image' });
   }
 }
 
@@ -3239,7 +3378,8 @@ async function generateVideo() {
   const priv = document.getElementById('optPrivate').checked;
 
   setOutputTab('output');
-  setLoading(true);
+  const startedAt = Date.now();
+  setLoading(true, { mode: 'video' });
 
   try {
     const referenceImageUrl = modelSupportsVisionInput('video', model) ? await ensureVisionUpload() : '';
@@ -3252,6 +3392,7 @@ async function generateVideo() {
     const videoUrl = `${BASE}/video/${encodeURIComponent(prompt)}?${params}`;
 
     await waitForVideoReady(videoUrl);
+    const durationMs = Date.now() - startedAt;
     addCard(videoUrl, {
       type: 'video',
       prompt,
@@ -3261,17 +3402,19 @@ async function generateVideo() {
       seed: seed || 'random',
       audio,
       priv,
+      durationMs,
       reference: !!referenceImageUrl
     });
-    showToast('Video generated successfully.', 'VID');
+    showToast(`Video generated in ${formatDuration(durationMs)}.`, 'VID');
   } catch (e) {
     showToast(e.message, 'ERR', true);
   } finally {
-    setLoading(false);
+    setLoading(false, { mode: 'video' });
   }
 }
 
-function addCard(src, meta) {
+function addCard(src, meta, options = {}) {
+  const shouldPersist = options.persist !== false;
   const type = meta.type || 'image';
   const entryId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -3317,6 +3460,7 @@ function addCard(src, meta) {
       <span class="mtag orange">video</span>
       <span class="mtag">${meta.aspectRatio || '16:9'} / ${meta.duration || 5}s</span>
       <span class="mtag">seed: ${meta.seed}</span>
+      ${meta.durationMs ? `<span class="mtag orange">done in ${formatDuration(meta.durationMs)}</span>` : ''}
       ${meta.audio ? '<span class="mtag orange">audio</span>' : ''}
       ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
       ${meta.priv ? '<span class="mtag">private</span>' : ''}
@@ -3325,6 +3469,7 @@ function addCard(src, meta) {
       <span class="mtag accent">${meta.model}</span>
       <span class="mtag">${meta.width}x${meta.height}</span>
       <span class="mtag">seed: ${meta.seed}</span>
+      ${meta.durationMs ? `<span class="mtag orange">done in ${formatDuration(meta.durationMs)}</span>` : ''}
       ${meta.reference ? '<span class="mtag orange">ref</span>' : ''}
       ${meta.nologo ? '<span class="mtag orange">no logo</span>' : ''}
       ${meta.enhance ? '<span class="mtag orange">enhanced</span>' : ''}
@@ -3345,11 +3490,12 @@ function addCard(src, meta) {
   document.getElementById('outBody').insertBefore(card, document.getElementById('outBody').firstChild);
   addThumb(src, type, entryId);
   syncOutputActions();
+  if (shouldPersist) persistSessionState();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   normalizeUIText();
-  setOutputTab('output');
+  restoreSessionState();
   updateLogCount();
 });
 </script>
