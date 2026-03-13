@@ -857,6 +857,7 @@ let outputTab = 'output';
 let hasRestoredSession = false;
 let loadStartedAt = 0;
 let loadVisualInt = null;
+let isGenerating = false;
 
 // ════════════════════════════════════════════════
 // PER-MODEL SYSTEM PROMPTS
@@ -1545,6 +1546,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTextModels();
   loadMediaModels();
   updateModeUI();
+  normalizeUIText();
+  restoreSessionState();
+  updateLogCount();
 });
 
 // ── API KEY ────────────────────────────────────
@@ -2972,11 +2976,16 @@ function buildReferenceImageParam(uploadedUrl = '', manualValue = '') {
   return refs.join('|');
 }
 
+function sanitizePositiveInteger(value = '') {
+  const parsed = Number.parseInt(String(value || '').trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : '';
+}
+
 function getAdvancedQuerySettings() {
   const getValue = id => document.getElementById(id)?.value?.trim?.() ?? '';
   return {
-    width: getValue('advWidth'),
-    height: getValue('advHeight'),
+    width: sanitizePositiveInteger(getValue('advWidth')),
+    height: sanitizePositiveInteger(getValue('advHeight')),
     safe: getValue('advSafe'),
     enhance: getValue('advEnhanceMode'),
     quality: getValue('advQuality'),
@@ -2984,6 +2993,23 @@ function getAdvancedQuerySettings() {
     negativePrompt: getValue('advNegativePrompt'),
     referenceUrls: getValue('advReferenceUrls')
   };
+}
+
+function setGenerationLock(locked) {
+  isGenerating = !!locked;
+  ['modeImageBtn', 'modeVideoBtn', 'enhanceBtn', 'advancedSettingsBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !!locked;
+  });
+}
+
+function setMediaMode(mode) {
+  if (isGenerating) return;
+  if (!['image', 'video'].includes(mode)) return;
+  mediaMode = mode;
+  updateModeUI();
+  if (mode === 'video') onVidModelChange();
+  else onImgModelChange();
 }
 
 function syncOutputActions() {
@@ -3417,10 +3443,11 @@ function setLoading(on, options = {}) {
   const elapsedEl = document.getElementById('loadingElapsed');
   const phaseEl = document.getElementById('loadingPhase');
 
+  setGenerationLock(on);
   btn.disabled = on;
   btnTxt.textContent = on
     ? (mode === 'video' ? 'Generating Video...' : 'Generating Image...')
-    : (mode === 'video' ? 'Generate Video' : 'Generate Image');
+    : (mediaMode === 'video' ? 'Generate Video' : 'Generate Image');
 
   if (on) {
     loadStartedAt = Date.now();
@@ -3471,7 +3498,8 @@ async function generateImage() {
   setLoading(true, { mode: 'image' });
 
   try {
-    const referenceImageUrl = modelSupportsVisionInput('image', model) ? await ensureVisionUpload() : '';
+    const supportsVision = modelSupportsVisionInput('image', model);
+    const referenceImageUrl = supportsVision ? await ensureVisionUpload() : '';
     const imageParam = buildReferenceImageParam(referenceImageUrl, adv.referenceUrls);
 
     const params = new URLSearchParams({ model, width, height, key: apiKey });
@@ -3484,7 +3512,7 @@ async function generateImage() {
     if (adv.negativePrompt) params.set('negative_prompt', adv.negativePrompt);
     if (adv.quality) params.set('quality', adv.quality);
     if (adv.transparent) params.set('transparent', adv.transparent);
-    if (imageParam && (modelSupportsVisionInput('image', model) || adv.referenceUrls)) params.set('image', imageParam);
+    if (imageParam && (supportsVision || adv.referenceUrls)) params.set('image', imageParam);
 
     const imgUrl = `${BASE}/image/${encodeURIComponent(prompt)}?${params}`;
 
@@ -3542,7 +3570,8 @@ async function generateVideo() {
   setLoading(true, { mode: 'video' });
 
   try {
-    const referenceImageUrl = modelSupportsVisionInput('video', model) ? await ensureVisionUpload() : '';
+    const supportsVision = modelSupportsVisionInput('video', model);
+    const referenceImageUrl = supportsVision ? await ensureVisionUpload() : '';
     const imageParam = buildReferenceImageParam(referenceImageUrl, adv.referenceUrls);
     const params = new URLSearchParams({ model, key: apiKey, duration, aspectRatio });
     if (adv.width) params.set('width', adv.width);
@@ -3666,12 +3695,6 @@ function addCard(src, meta, options = {}) {
   syncOutputActions();
   if (shouldPersist) persistSessionState();
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  normalizeUIText();
-  restoreSessionState();
-  updateLogCount();
-});
 </script>
 </body>
 </html>
